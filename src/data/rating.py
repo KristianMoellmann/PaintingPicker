@@ -2,18 +2,23 @@ import customtkinter as tk
 import random
 from glob import glob
 from PIL import Image, ImageTk
-
+from argparse import ArgumentParser
+from pathlib import Path
+import os
+import json
 
 class Rating(tk.CTk):
 
-    def __init__(self):
+    def __init__(self, name: str, folder: str):
         super().__init__()
+        self.name = name
+        self.folder = folder
+        self.scores_folder = Path(f'{folder}_scores')
 
         self.title('Rating')
         self.geometry('1280x700')
 
-        self.images = glob('data/raw/*.png')
-        self.votes = [0, 0]
+        self.images = glob(f'{folder}/*.jpg')
 
         # Write the votes as a header
         self.header = tk.CTkLabel(self, text=f'{self.votes[0]} vs {self.votes[1]}', font=('Arial', 20))
@@ -25,6 +30,7 @@ class Rating(tk.CTk):
         self.canvas_right = tk.CTkCanvas(self, width=600, height=600)
         self.canvas_right.pack(side=tk.RIGHT, padx=(5, 100))
 
+        self.scores = self.load_image_scores()
         self.load_images()
 
         self.bind('<Left>', self.on_left_key)
@@ -36,6 +42,29 @@ class Rating(tk.CTk):
 
         # Escape key to close the window
         self.bind('<Escape>', lambda e: self.destroy())
+    
+    def load_image_scores(self):
+        # Load image scores from json file...
+        # If score folder does not exist, create it
+        if not self.scores_folder.exists():
+            self.scores_folder.mkdir()
+        # If scores file does not exist, create it
+        scores_file = Path(f'{self.scores_folder}/{self.name}.json')
+        if not scores_file.exists():
+            with open(scores_file, 'w') as f:
+                scores = {}
+                for image in self.images:
+                    scores[os.path.basename(image)] = 0
+                f.write(json.dumps(scores))
+        else:
+            with open(scores_file, 'r') as f:
+                scores = json.load(f)
+        return scores
+    
+    def save_image_scores(self):
+        scores_file = Path(f'{self.scores_folder}/{self.name}.json')
+        with open(scores_file, 'w') as f:
+            f.write(json.dumps(self.scores))
 
     def load_images(self):
         image1_path, image2_path = random.sample(self.images, 2)
@@ -71,13 +100,13 @@ class Rating(tk.CTk):
 
     def on_left_key(self, event):
         self.canvas_left.configure(bg='green')
-        self.votes[0] += 1
+        self.scores[os.path.basename(self.images[0])] += 1
         self.update_header()
         self.load_images()
     
     def on_right_key(self, event):
         self.canvas_right.configure(bg='green')
-        self.votes[1] += 1
+        self.scores[os.path.basename(self.images[1])] += 1
         self.update_header()
         self.load_images()
     
@@ -85,5 +114,10 @@ class Rating(tk.CTk):
         self.mainloop()
 
 if __name__ == '__main__':
-    app = Rating()
+    parser = ArgumentParser()
+    parser.add_argument("name", default=None, type=str, help="Name of the user")
+    parser.add_argument("--folder", default='data/fewer_imgs', type=str, help="Folder containing images")
+    args = parser.parse_args()
+
+    app = Rating(args.name, args.folder)
     app.run()
