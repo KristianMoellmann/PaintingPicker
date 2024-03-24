@@ -13,22 +13,30 @@ class Rating(tk.CTk):
         super().__init__()
         self.name = name
         self.folder = folder
-        self.scores_folder = Path(f'{folder}_scores')
+        self.scores_folder = Path(f'reports/scores/{os.path.basename(folder)}')
 
         self.title('Rating')
         self.geometry('1280x700')
 
         self.images = glob(f'{folder}/*.jpg')
+        self.left_image_name = None
+        self.right_image_name = None
+
+        self.match_index = 0
+        self.image_pairings = self.restart_round()
+        self.number_of_pairings = len(self.image_pairings)
 
         # Write the votes as a header
-        self.header = tk.CTkLabel(self, text=f'{self.votes[0]} vs {self.votes[1]}', font=('Arial', 20))
+        self.header = tk.CTkLabel(self, text=f'Match {1} of {self.number_of_pairings}', font=('Arial', 20))
         self.header.pack(pady=10)
 
         # Create two 600x600 canvases side by side but centered
         self.canvas_left = tk.CTkCanvas(self, width=600, height=600)
-        self.canvas_left.pack(side=tk.LEFT, padx=(100, 5))
+        self.canvas_left.configure(bg='black')
+        self.canvas_left.place(relx=0.25, rely=0.5, anchor=tk.CENTER)
         self.canvas_right = tk.CTkCanvas(self, width=600, height=600)
-        self.canvas_right.pack(side=tk.RIGHT, padx=(5, 100))
+        self.canvas_right.configure(bg='black')
+        self.canvas_right.place(relx=0.75, rely=0.5, anchor=tk.CENTER)
 
         self.scores = self.load_image_scores()
         self.load_images()
@@ -42,6 +50,21 @@ class Rating(tk.CTk):
 
         # Escape key to close the window
         self.bind('<Escape>', lambda e: self.destroy())
+    
+    def create_image_pairings(self):
+        # Pair each image with another image randomly. If odd number, one image will have two pairings
+        image_pairings = []
+        images = self.images.copy()
+        while len(images) > 1:
+            image1 = images.pop(random.randint(0, len(images)-1))
+            image2 = images.pop(random.randint(0, len(images)-1))
+            image_pairings.append((image1, image2))
+        if len(images) == 1:
+            random_image = random.choice(self.images)
+            while random_image == images[0]:
+                random_image = random.choice(self.images)
+            image_pairings.append((images[0], random_image))
+        return image_pairings
     
     def load_image_scores(self):
         # Load image scores from json file...
@@ -59,15 +82,30 @@ class Rating(tk.CTk):
         else:
             with open(scores_file, 'r') as f:
                 scores = json.load(f)
+        sum = 0
+        for score in scores.values():
+            sum += score
+        print(f'Loaded scores for {self.name} with a total of {sum} votes')
         return scores
     
     def save_image_scores(self):
         scores_file = Path(f'{self.scores_folder}/{self.name}.json')
         with open(scores_file, 'w') as f:
             f.write(json.dumps(self.scores))
+    
+    def restart_round(self):
+        self.match_index = 0
+        return self.create_image_pairings()
 
     def load_images(self):
-        image1_path, image2_path = random.sample(self.images, 2)
+        if self.match_index >= self.number_of_pairings:
+            self.image_pairings = self.restart_round()
+        image1_path, image2_path = self.image_pairings[self.match_index]
+        self.match_index += 1
+
+        self.left_image_name = os.path.basename(image1_path)
+        self.right_image_name = os.path.basename(image2_path)
+
         image1 = Image.open(image1_path)
         image2 = Image.open(image2_path)
         # Resize images to fit the canvas such that the largest dimension is 600 but keeps ratio
@@ -82,8 +120,7 @@ class Rating(tk.CTk):
         self.canvas_left.create_image(0, 0, image=self.image1, anchor=tk.NW)
         self.canvas_right.create_image(0, 0, image=self.image2, anchor=tk.NW)
         # Reset canvas background
-        self.canvas_left.configure(bg='white')
-        self.canvas_right.configure(bg='white')
+        self.update_header()
 
     def resize_image(self, image, max_size):
         width, height = image.width, image.height
@@ -96,18 +133,18 @@ class Rating(tk.CTk):
         return image.resize((new_width, new_height))
 
     def update_header(self):
-        self.header.configure(text=f'{self.votes[0]} vs {self.votes[1]}')
+        self.header.configure(text=f'Match {self.match_index} of {self.number_of_pairings}')
 
     def on_left_key(self, event):
         self.canvas_left.configure(bg='green')
-        self.scores[os.path.basename(self.images[0])] += 1
-        self.update_header()
+        self.scores[self.left_image_name] += 1
+        self.save_image_scores()
         self.load_images()
     
     def on_right_key(self, event):
         self.canvas_right.configure(bg='green')
-        self.scores[os.path.basename(self.images[1])] += 1
-        self.update_header()
+        self.scores[self.right_image_name] += 1
+        self.save_image_scores()
         self.load_images()
     
     def run(self):
