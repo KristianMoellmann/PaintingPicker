@@ -96,21 +96,8 @@ class Rating(tk.CTk):
             else:
                 # If there are no possible matches left break
                 break
-
-            # NOTE: DET SER UD TIL AT KODEN OVENFOR TAGER LIDT LANG TID NÅR DER ER MANGE BILLEDER. ALTERNATIVT KAN VI BRUGE NOGET A LA DET HER:
-            # DET ER IKKE HELT DEN SAMME METODE. HER VÆLGES IKKE ALTID DET BILLEDE MED FÆRREST MATCHES FØRST.
-            # Choose random image to start off
-            # random_index = random.randint(0, len(images_sorted_by_elo)-1)
-            # left = max(0, random_index - num_neighbours//2)
-            # right = min(len(images_sorted_by_elo), random_index + num_neighbours//2)
-            # # Sort only the images with similar elo scores by number of matches
-            # sub_images_sorted_by_matches = sorted(images_sorted_by_elo[left:right], key=lambda x: self.scores[os.path.basename(x)]['matches'])
-            # image1 = sub_images_sorted_by_matches[0]
-            # images_sorted_by_elo.remove(image1)
-            # image2 = sub_images_sorted_by_matches[1]
-            # images_sorted_by_elo.remove(image2)
+            
             image_pairings.append((image1, image2))
-
         return image_pairings
 
     
