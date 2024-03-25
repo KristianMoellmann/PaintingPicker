@@ -7,15 +7,15 @@ from pathlib import Path
 import os
 import json
 from datetime import datetime
+from tqdm import tqdm
 
 class Rating(tk.CTk):
 
-    def __init__(self, name: str, folder: str, strategy: str = 'random', num_neighbours: int = 50):
+    def __init__(self, name: str, folder: str, strategy: str = 'random'):
         super().__init__()
         self.name = name
         self.strategy = strategy
         self.folder = folder
-        self.num_neighbours = num_neighbours
         self.scores_folder = Path(f'scores/{os.path.basename(folder)}/elo')
         self.session = None
 
@@ -47,7 +47,7 @@ class Rating(tk.CTk):
         # Load the scores
         self.scores, self.history = self.load_image_elo_scores()
         self.match_index = 0
-        self.image_pairings = self.restart_round(self.strategy, self.num_neighbours)
+        self.image_pairings = self.restart_round(self.strategy)
         self.number_of_pairings = len(self.image_pairings)
 
         # Write the votes as a header
@@ -73,14 +73,16 @@ class Rating(tk.CTk):
         return image_pairings
     
     
-    def create_smart_image_pairings(self, num_neighbours=50):
+    def create_smart_image_pairings(self):
         filename_to_fullpath = {os.path.basename(path): path for path in self.images}
         images_sorted_by_elo_filenames = sorted(self.scores, key=lambda x: self.scores[x]['elo'])
         images_sorted_by_elo = [filename_to_fullpath[filename] for filename in images_sorted_by_elo_filenames]
 
         image_pairings = []
+        pbar = tqdm(total=len(images_sorted_by_elo))
         while len(images_sorted_by_elo) > 1:
             image1 = min(images_sorted_by_elo, key=lambda x: self.scores[os.path.basename(x)]['matches'])
+            pbar.update(1)
             images_sorted_by_elo.remove(image1)
             index_of_image1 = images_sorted_by_elo_filenames.index(os.path.basename(image1))
             
@@ -96,8 +98,9 @@ class Rating(tk.CTk):
             else:
                 # If there are no possible matches left break
                 break
-            
+
             image_pairings.append((image1, image2))
+            pbar.update(1)
         return image_pairings
 
     
@@ -143,17 +146,17 @@ class Rating(tk.CTk):
             f.write(json.dumps(self.history, indent=4))
 
     
-    def restart_round(self, strategy, num_neighbours=15):
+    def restart_round(self, strategy):
         self.match_index = 0
         if strategy == "smart":
-            return self.create_smart_image_pairings(num_neighbours=num_neighbours)
+            return self.create_smart_image_pairings()
         else:
             return self.create_random_image_pairings()
 
 
     def load_images(self):
         if self.match_index >= self.number_of_pairings:
-            self.image_pairings = self.restart_round(self.strategy, self.num_neighbours)
+            self.image_pairings = self.restart_round(self.strategy)
         image1_path, image2_path = self.image_pairings[self.match_index]
         self.match_index += 1
 
