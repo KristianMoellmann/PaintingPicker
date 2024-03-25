@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 import os
 import json
+from datetime import datetime
 
 class Rating(tk.CTk):
 
@@ -14,6 +15,7 @@ class Rating(tk.CTk):
         self.name = name
         self.folder = folder
         self.scores_folder = Path(f'scores/{os.path.basename(folder)}/elo')
+        self.session = None
 
         self.title('Rating')
         self.geometry('1280x720')
@@ -41,7 +43,7 @@ class Rating(tk.CTk):
         self.bind('<Escape>', lambda e: self.destroy())
 
         # Load the scores
-        self.scores = self.load_image_elo_scores()
+        self.scores, self.history = self.load_image_elo_scores()
 
         if strategy == 'random':
 
@@ -84,25 +86,43 @@ class Rating(tk.CTk):
     def load_image_elo_scores(self):
         # Load image scores from json file...
         self.scores_folder.mkdir(parents=True, exist_ok=True)
-        # If scores file does not exist, create it
-        scores_file = Path(f'{self.scores_folder}/{self.name}.json')
-        if not scores_file.exists():
+        # Load elo scores from json file
+        elo_scores_file = Path(f'{self.scores_folder}/{self.name}.json')
+        if not elo_scores_file.exists():
             scores = {
                 os.path.basename(image): {"elo": 1400, "matches": 0, "wins": 0, "losses": 0, "draws": 0}
                 for image in self.images
             }
-            with open(scores_file, 'w') as f:
+            with open(elo_scores_file, 'w') as f:
                 f.write(json.dumps(scores, indent=4))
         else:
-            with open(scores_file, 'r') as f:
+            with open(elo_scores_file, 'r') as f:
                 scores = json.load(f)
-        return scores
+        
+        # Load match up history from json file
+        history_file = Path(f'{self.scores_folder}/{self.name}_history.json')
+        if not history_file.exists():
+            history = {"0": {}}
+            self.session = "0"
+            with open(history_file, 'w') as f:
+                f.write(json.dumps(history, indent=4))
+        else:
+            with open(history_file, 'r') as f:
+                history = json.load(f)
+            self.session = str(max(map(int, history.keys())) + 1)
+            history[self.session] = {}
+        
+        return scores, history
     
     
     def save_image_scores(self):
         scores_file = Path(f'{self.scores_folder}/{self.name}.json')
         with open(scores_file, 'w') as f:
             f.write(json.dumps(self.scores, indent=4))
+        
+        history_file = Path(f'{self.scores_folder}/{self.name}_history.json')
+        with open(history_file, 'w') as f:
+            f.write(json.dumps(self.history, indent=4))
 
     
     def restart_round(self):
@@ -195,6 +215,13 @@ class Rating(tk.CTk):
         self.scores[self.right_image_name]["elo"] = right_score_new
         self.scores[self.right_image_name]["matches"] += 1
         self.scores[self.right_image_name]["losses"] += 1
+
+        # store history at current datetime
+        self.history[self.session][datetime.now().isoformat()] = {
+            "left_image": self.left_image_name,
+            "right_image": self.right_image_name,
+            "winner": 0
+        }
         
         self.save_image_scores()
         self.load_images()
@@ -218,6 +245,13 @@ class Rating(tk.CTk):
         self.scores[self.right_image_name]["elo"] = right_score_new
         self.scores[self.right_image_name]["matches"] += 1
         self.scores[self.right_image_name]["wins"] += 1
+
+        # store history at current datetime
+        self.history[self.session][datetime.now().isoformat()] = {
+            "left_image": self.left_image_name,
+            "right_image": self.right_image_name,
+            "winner": 1
+        }
         
         self.save_image_scores()
         self.load_images()
@@ -241,6 +275,13 @@ class Rating(tk.CTk):
         self.scores[self.right_image_name]["elo"] = right_score_new
         self.scores[self.right_image_name]["matches"] += 1
         self.scores[self.right_image_name]["draws"] += 1
+
+        # store history at current datetime
+        self.history[self.session][datetime.now().isoformat()] = {
+            "left_image": self.left_image_name,
+            "right_image": self.right_image_name,
+            "winner": 2
+        }
         
         self.save_image_scores()
         self.load_images()
