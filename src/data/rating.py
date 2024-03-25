@@ -16,7 +16,7 @@ class Rating(tk.CTk):
         self.scores_folder = Path(f'reports/scores/{os.path.basename(folder)}')
 
         self.title('Rating')
-        self.geometry('1280x700')
+        self.geometry('1280x720')
 
         self.images = glob(f'{folder}/*.jpg')
         self.left_image_name = None
@@ -75,6 +75,7 @@ class Rating(tk.CTk):
         scores_file = Path(f'{self.scores_folder}/{self.name}.json')
         if not scores_file.exists():
             with open(scores_file, 'w') as f:
+                # TODO: Change to include the necessary metrics
                 scores = {}
                 for image in self.images:
                     scores[os.path.basename(image)] = 0
@@ -137,7 +138,7 @@ class Rating(tk.CTk):
 
     def on_left_key(self, event):
         self.canvas_left.configure(bg='green')
-        self.scores[self.left_image_name] += 1
+        self.scores[self.left_image_name] += 1 # TODO: Change to a function which calculates the accurate ELO between two images
         self.save_image_scores()
         self.load_images()
     
