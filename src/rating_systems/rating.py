@@ -254,7 +254,8 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("name", default=None, type=str, help="Name of the user")
     parser.add_argument("--folder", default='data/fewer_imgs', type=str, help="Folder containing images")
+    parser.add_argument("--strategy", default='random', type=str, help="Strategy for selecting images")
     args = parser.parse_args()
     
-    app = Rating(args.name, args.folder)
+    app = Rating(args.name, args.folder, args.strategy)
     app.run()
