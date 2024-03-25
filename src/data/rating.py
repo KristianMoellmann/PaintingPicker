@@ -19,6 +19,7 @@ class Rating(tk.CTk):
         self.geometry('1280x720')
 
         self.images = glob(f'{folder}/*.jpg')
+        self.images.sort()
         self.left_image_name = None
         self.right_image_name = None
 
@@ -32,10 +33,8 @@ class Rating(tk.CTk):
 
         # Create two 600x600 canvases side by side but centered
         self.canvas_left = tk.CTkCanvas(self, width=600, height=600)
-        self.canvas_left.configure(bg='black')
         self.canvas_left.place(relx=0.25, rely=0.5, anchor=tk.CENTER)
         self.canvas_right = tk.CTkCanvas(self, width=600, height=600)
-        self.canvas_right.configure(bg='black')
         self.canvas_right.place(relx=0.75, rely=0.5, anchor=tk.CENTER)
 
         # Load the scores
