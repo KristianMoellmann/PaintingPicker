@@ -1,5 +1,6 @@
 docs/site/
 
+# do not include the data folder in the repo but include src/data/ in the repo
 data/
 !src/data/
 
