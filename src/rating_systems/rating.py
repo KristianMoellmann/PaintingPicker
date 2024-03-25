@@ -10,7 +10,7 @@ from datetime import datetime
 
 class Rating(tk.CTk):
 
-    def __init__(self, name: str, folder: str, strategy: str = 'random', num_neighbours: int = 15):
+    def __init__(self, name: str, folder: str, strategy: str = 'random', num_neighbours: int = 50):
         super().__init__()
         self.name = name
         self.strategy = strategy
@@ -73,7 +73,7 @@ class Rating(tk.CTk):
         return image_pairings
     
     
-    def create_smart_image_pairings(self, num_neighbours=15):
+    def create_smart_image_pairings(self, num_neighbours=50):
         filename_to_fullpath = {os.path.basename(path): path for path in self.images}
         images_sorted_by_elo_filenames = sorted(self.scores, key=lambda x: self.scores[x]['elo'])
         images_sorted_by_elo = [filename_to_fullpath[filename] for filename in images_sorted_by_elo_filenames]
@@ -98,10 +98,12 @@ class Rating(tk.CTk):
             #     break
 
             # NOTE: DENNE IMPLEMENTATION ER MEGET HURTIGERE, MEN FAVORISERER IKKE I LIGE SÅ STOR GRAD AT DET ER BILLEDERNE MED ALLER FÆRREST MATCHES DER BLIVER VALGT
+            # JEG VIL IKKE BESTEMME AT VI SKAL BRUGE DENNE OVER DEN ANDEN, MEN BLOT AT DEN ER EN MULIGHED
             # Choose random image to start off
             random_index = random.randint(0, len(images_sorted_by_elo)-1)
             left = max(0, random_index - num_neighbours//2)
             right = min(len(images_sorted_by_elo), random_index + num_neighbours//2)
+            # Sort only the images with similar elo scores by number of matches
             sub_images_sorted_by_matches = sorted(images_sorted_by_elo[left:right], key=lambda x: self.scores[os.path.basename(x)]['matches'])
             image1 = sub_images_sorted_by_matches[0]
             images_sorted_by_elo.remove(image1)
