@@ -144,7 +144,7 @@ class Rating(tk.CTk):
     
     def on_right_key(self, event):
         self.canvas_right.configure(bg='green')
-        self.scores[self.right_image_name] += 1
+        self.scores[self.right_image_name] += 1 # TODO: Change to a function which calculates the accurate ELO between two images
         self.save_image_scores()
         self.load_images()
     
