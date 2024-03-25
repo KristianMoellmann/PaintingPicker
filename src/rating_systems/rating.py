@@ -10,11 +10,12 @@ from datetime import datetime
 
 class Rating(tk.CTk):
 
-    def __init__(self, name: str, folder: str, strategy: str = 'random'):
+    def __init__(self, name: str, folder: str, strategy: str = 'random', num_neighbours: int = 15):
         super().__init__()
         self.name = name
         self.strategy = strategy
         self.folder = folder
+        self.num_neighbours = num_neighbours
         self.scores_folder = Path(f'scores/{os.path.basename(folder)}/elo')
         self.session = None
 
@@ -44,9 +45,9 @@ class Rating(tk.CTk):
         self.bind('<Escape>', lambda e: self.destroy())
 
         # Load the scores
-        self.scores = self.load_image_elo_scores()
+        self.scores, self.history = self.load_image_elo_scores()
         self.match_index = 0
-        self.image_pairings = self.restart_round(self.strategy)
+        self.image_pairings = self.restart_round(self.strategy, self.num_neighbours)
         self.number_of_pairings = len(self.image_pairings)
 
         # Write the votes as a header
@@ -60,7 +61,6 @@ class Rating(tk.CTk):
         # Pair each image with another image randomly. If odd number, one image will have two pairings
         image_pairings = []
         images = self.images.copy()
-        print(f"images: {images}")
         while len(images) > 1:
             image1 = images.pop(random.randint(0, len(images)-1))
             image2 = images.pop(random.randint(0, len(images)-1))
@@ -70,40 +70,46 @@ class Rating(tk.CTk):
             while random_image == images[0]:
                 random_image = random.choice(self.images)
             image_pairings.append((images[0], random_image))
-        
-        print(f"image_pairings random: {image_pairings}")
         return image_pairings
     
     
-    def create_smart_image_pairings(self):
+    def create_smart_image_pairings(self, num_neighbours=15):
         filename_to_fullpath = {os.path.basename(path): path for path in self.images}
         images_sorted_by_elo_filenames = sorted(self.scores, key=lambda x: self.scores[x]['elo'])
         images_sorted_by_elo = [filename_to_fullpath[filename] for filename in images_sorted_by_elo_filenames]
 
         image_pairings = []
-        while len(images_sorted_by_elo) > 0:
-            image1 = min(images_sorted_by_elo, key=lambda x: self.scores[os.path.basename(x)]['matches'])
-            images_sorted_by_elo.remove(image1)
-            index_of_image1 = images_sorted_by_elo_filenames.index(os.path.basename(image1))
+        while len(images_sorted_by_elo) > 1:
+            # image1 = min(images_sorted_by_elo, key=lambda x: self.scores[os.path.basename(x)]['matches'])
+            # images_sorted_by_elo.remove(image1)
+            # index_of_image1 = images_sorted_by_elo_filenames.index(os.path.basename(image1))
             
-            start_index = max(0, index_of_image1 - 15)
-            end_index = min(len(images_sorted_by_elo_filenames), index_of_image1 + 16)  # +16 to include the 15th index on the right
-            possible_match_filenames = images_sorted_by_elo_filenames[start_index:index_of_image1] + images_sorted_by_elo_filenames[index_of_image1 + 1:end_index]
-            possible_matches = [filename_to_fullpath[filename] for filename in possible_match_filenames if filename_to_fullpath[filename] in images_sorted_by_elo]
+            # start_index = max(0, index_of_image1 - 15)
+            # end_index = min(len(images_sorted_by_elo_filenames), index_of_image1 + 16)  # +16 to include the 15th index on the right
+            # possible_match_filenames = images_sorted_by_elo_filenames[start_index:index_of_image1] + images_sorted_by_elo_filenames[index_of_image1 + 1:end_index]
+            # possible_matches = [filename_to_fullpath[filename] for filename in possible_match_filenames if filename_to_fullpath[filename] in images_sorted_by_elo]
 
-            if possible_matches:
-                # Select a random image from the possible matches
-                image2 = random.choice(possible_matches)
-                images_sorted_by_elo.remove(image2)
-            else:
-                # If there are no possible matches left break
-                break
+            # if possible_matches:
+            #     # Select a random image from the possible matches
+            #     image2 = random.choice(possible_matches)
+            #     images_sorted_by_elo.remove(image2)
+            # else:
+            #     # If there are no possible matches left break
+            #     break
 
-
+            # NOTE: DENNE IMPLEMENTATION ER MEGET HURTIGERE, MEN FAVORISERER IKKE I LIGE SÅ STOR GRAD AT DET ER BILLEDERNE MED ALLER FÆRREST MATCHES DER BLIVER VALGT
+            # Choose random image to start off
+            random_index = random.randint(0, len(images_sorted_by_elo)-1)
+            left = max(0, random_index - num_neighbours//2)
+            right = min(len(images_sorted_by_elo), random_index + num_neighbours//2)
+            sub_images_sorted_by_matches = sorted(images_sorted_by_elo[left:right], key=lambda x: self.scores[os.path.basename(x)]['matches'])
+            image1 = sub_images_sorted_by_matches[0]
+            images_sorted_by_elo.remove(image1)
+            image2 = sub_images_sorted_by_matches[1]
+            images_sorted_by_elo.remove(image2)
             image_pairings.append((image1, image2))
 
         return image_pairings
-
 
     
     def load_image_elo_scores(self):
@@ -148,17 +154,17 @@ class Rating(tk.CTk):
             f.write(json.dumps(self.history, indent=4))
 
     
-    def restart_round(self, strategy):
+    def restart_round(self, strategy, num_neighbours=15):
         self.match_index = 0
         if strategy == "smart":
-            return self.create_smart_image_pairings()
+            return self.create_smart_image_pairings(num_neighbours=num_neighbours)
         else:
             return self.create_random_image_pairings()
 
 
     def load_images(self):
         if self.match_index >= self.number_of_pairings:
-            self.image_pairings = self.restart_round(self.strategy)
+            self.image_pairings = self.restart_round(self.strategy, self.num_neighbours)
         image1_path, image2_path = self.image_pairings[self.match_index]
         self.match_index += 1
 
