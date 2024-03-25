@@ -12,6 +12,7 @@ class Rating(tk.CTk):
     def __init__(self, name: str, folder: str, strategy: str = 'random'):
         super().__init__()
         self.name = name
+        self.strategy = strategy
         self.folder = folder
         self.scores_folder = Path(f'scores/{os.path.basename(folder)}/elo')
 
@@ -42,33 +43,22 @@ class Rating(tk.CTk):
 
         # Load the scores
         self.scores = self.load_image_elo_scores()
+        self.match_index = 0
+        self.image_pairings = self.restart_round(self.strategy)
+        self.number_of_pairings = len(self.image_pairings)
 
-        if strategy == 'random':
+        # Write the votes as a header
+        self.header = tk.CTkLabel(self, text=f'Match {1} of {self.number_of_pairings}', font=('Arial', 20))
+        self.header.pack(pady=10)
 
-            self.match_index = 0
-            self.image_pairings = self.restart_round()
-            self.number_of_pairings = len(self.image_pairings)
+        self.load_images()
 
-            # Write the votes as a header
-            self.header = tk.CTkLabel(self, text=f'Match {1} of {self.number_of_pairings}', font=('Arial', 20))
-            self.header.pack(pady=10)
-
-            self.load_images()
-
-        elif strategy == 'smart':
-            self.match_index = 0
-            # Write the votes as a header
-            self.header = tk.CTkLabel(self, text=f'Match {1}', font=('Arial', 20))
-            self.header.pack(pady=10)
-
-            # TODO: CHANGE TO USE SMART STRATEGY IF CHOSEN
-            # Write new load_image function
-            pass
     
-    def create_image_pairings(self):
+    def create_random_image_pairings(self):
         # Pair each image with another image randomly. If odd number, one image will have two pairings
         image_pairings = []
         images = self.images.copy()
+        print(f"images: {images}")
         while len(images) > 1:
             image1 = images.pop(random.randint(0, len(images)-1))
             image2 = images.pop(random.randint(0, len(images)-1))
@@ -78,8 +68,41 @@ class Rating(tk.CTk):
             while random_image == images[0]:
                 random_image = random.choice(self.images)
             image_pairings.append((images[0], random_image))
-        return image_pairings
         
+        print(f"image_pairings random: {image_pairings}")
+        return image_pairings
+    
+    
+    def create_smart_image_pairings(self):
+        filename_to_fullpath = {os.path.basename(path): path for path in self.images}
+        images_sorted_by_elo_filenames = sorted(self.scores, key=lambda x: self.scores[x]['elo'])
+        images_sorted_by_elo = [filename_to_fullpath[filename] for filename in images_sorted_by_elo_filenames]
+
+        image_pairings = []
+        while len(images_sorted_by_elo) > 0:
+            image1 = min(images_sorted_by_elo, key=lambda x: self.scores[os.path.basename(x)]['matches'])
+            images_sorted_by_elo.remove(image1)
+            index_of_image1 = images_sorted_by_elo_filenames.index(os.path.basename(image1))
+            
+            start_index = max(0, index_of_image1 - 15)
+            end_index = min(len(images_sorted_by_elo_filenames), index_of_image1 + 16)  # +16 to include the 15th index on the right
+            possible_match_filenames = images_sorted_by_elo_filenames[start_index:index_of_image1] + images_sorted_by_elo_filenames[index_of_image1 + 1:end_index]
+            possible_matches = [filename_to_fullpath[filename] for filename in possible_match_filenames if filename_to_fullpath[filename] in images_sorted_by_elo]
+
+            if possible_matches:
+                # Select a random image from the possible matches
+                image2 = random.choice(possible_matches)
+                images_sorted_by_elo.remove(image2)
+            else:
+                # If there are no possible matches left break
+                break
+
+
+            image_pairings.append((image1, image2))
+
+        return image_pairings
+
+
     
     def load_image_elo_scores(self):
         # Load image scores from json file...
@@ -105,14 +128,17 @@ class Rating(tk.CTk):
             f.write(json.dumps(self.scores, indent=4))
 
     
-    def restart_round(self):
+    def restart_round(self, strategy):
         self.match_index = 0
-        return self.create_image_pairings()
+        if strategy == "smart":
+            return self.create_smart_image_pairings()
+        else:
+            return self.create_random_image_pairings()
 
 
     def load_images(self):
         if self.match_index >= self.number_of_pairings:
-            self.image_pairings = self.restart_round()
+            self.image_pairings = self.restart_round(self.strategy)
         image1_path, image2_path = self.image_pairings[self.match_index]
         self.match_index += 1
 
@@ -208,7 +234,7 @@ class Rating(tk.CTk):
         right_score = self.scores[self.right_image_name]["elo"]
         
         # Calculate new Elo scores with left image as winner
-        left_score_new, right_score_new = self.calculate_elo(left_score, right_score, 1, 0)
+        left_score_new, right_score_new = self.calculate_elo(left_score, right_score, 0, 1)
         
         # Update scores and record the match
         self.scores[self.left_image_name]["elo"] = left_score_new
@@ -231,7 +257,7 @@ class Rating(tk.CTk):
         right_score = self.scores[self.right_image_name]["elo"]
         
         # Calculate new Elo scores with left image as winner
-        left_score_new, right_score_new = self.calculate_elo(left_score, right_score, 1, 0)
+        left_score_new, right_score_new = self.calculate_elo(left_score, right_score, 0.5, 0.5)
         
         # Update scores and record the match
         self.scores[self.left_image_name]["elo"] = left_score_new
@@ -254,7 +280,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("name", default=None, type=str, help="Name of the user")
     parser.add_argument("--folder", default='data/fewer_imgs', type=str, help="Folder containing images")
-    parser.add_argument("--strategy", default='random', type=str, help="Strategy for selecting images")
+    parser.add_argument("--strategy", default='random', choices=["random", "smart"], type=str, help="Strategy for selecting images")
     args = parser.parse_args()
     
     app = Rating(args.name, args.folder, args.strategy)
