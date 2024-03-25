@@ -5,10 +5,12 @@ from glob import glob
 
 def extract_data(dataset):
     all_images = glob(f'data/raw/*.jpg')
-    if dataset == 'tiny':
+    if dataset == 'micro':
+        print('Extracting micro dataset')
+        images = all_images[:3]
+    elif dataset == 'tiny':
         print('Extracting tiny dataset')
         images = all_images[:10]
-        
     elif dataset == 'full':
         print('Extracting full dataset')
         images = all_images[:1000]
@@ -21,6 +23,6 @@ def extract_data(dataset):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset', type=str, choices=['tiny', 'full'], help='Choose between tiny and full dataset (10 vs. 1000 images)')
+    parser.add_argument('dataset', type=str, choices=['micro', 'tiny', 'full'], help='Choose between micro, tiny and full dataset (3 vs. 10 vs. 1000 images)')
     args = parser.parse_args()
     extract_data(args.dataset)
