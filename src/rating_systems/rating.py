@@ -80,35 +80,35 @@ class Rating(tk.CTk):
 
         image_pairings = []
         while len(images_sorted_by_elo) > 1:
-            # image1 = min(images_sorted_by_elo, key=lambda x: self.scores[os.path.basename(x)]['matches'])
-            # images_sorted_by_elo.remove(image1)
-            # index_of_image1 = images_sorted_by_elo_filenames.index(os.path.basename(image1))
-            
-            # start_index = max(0, index_of_image1 - 15)
-            # end_index = min(len(images_sorted_by_elo_filenames), index_of_image1 + 16)  # +16 to include the 15th index on the right
-            # possible_match_filenames = images_sorted_by_elo_filenames[start_index:index_of_image1] + images_sorted_by_elo_filenames[index_of_image1 + 1:end_index]
-            # possible_matches = [filename_to_fullpath[filename] for filename in possible_match_filenames if filename_to_fullpath[filename] in images_sorted_by_elo]
-
-            # if possible_matches:
-            #     # Select a random image from the possible matches
-            #     image2 = random.choice(possible_matches)
-            #     images_sorted_by_elo.remove(image2)
-            # else:
-            #     # If there are no possible matches left break
-            #     break
-
-            # NOTE: DENNE IMPLEMENTATION ER MEGET HURTIGERE, MEN FAVORISERER IKKE I LIGE SÅ STOR GRAD AT DET ER BILLEDERNE MED ALLER FÆRREST MATCHES DER BLIVER VALGT
-            # JEG VIL IKKE BESTEMME AT VI SKAL BRUGE DENNE OVER DEN ANDEN, MEN BLOT AT DEN ER EN MULIGHED
-            # Choose random image to start off
-            random_index = random.randint(0, len(images_sorted_by_elo)-1)
-            left = max(0, random_index - num_neighbours//2)
-            right = min(len(images_sorted_by_elo), random_index + num_neighbours//2)
-            # Sort only the images with similar elo scores by number of matches
-            sub_images_sorted_by_matches = sorted(images_sorted_by_elo[left:right], key=lambda x: self.scores[os.path.basename(x)]['matches'])
-            image1 = sub_images_sorted_by_matches[0]
+            image1 = min(images_sorted_by_elo, key=lambda x: self.scores[os.path.basename(x)]['matches'])
             images_sorted_by_elo.remove(image1)
-            image2 = sub_images_sorted_by_matches[1]
-            images_sorted_by_elo.remove(image2)
+            index_of_image1 = images_sorted_by_elo_filenames.index(os.path.basename(image1))
+            
+            start_index = max(0, index_of_image1 - 15)
+            end_index = min(len(images_sorted_by_elo_filenames), index_of_image1 + 16)  # +16 to include the 15th index on the right
+            possible_match_filenames = images_sorted_by_elo_filenames[start_index:index_of_image1] + images_sorted_by_elo_filenames[index_of_image1 + 1:end_index]
+            possible_matches = [filename_to_fullpath[filename] for filename in possible_match_filenames if filename_to_fullpath[filename] in images_sorted_by_elo]
+
+            if possible_matches:
+                # Select a random image from the possible matches
+                image2 = random.choice(possible_matches)
+                images_sorted_by_elo.remove(image2)
+            else:
+                # If there are no possible matches left break
+                break
+
+            # NOTE: DET SER UD TIL AT KODEN OVENFOR TAGER LIDT LANG TID NÅR DER ER MANGE BILLEDER. ALTERNATIVT KAN VI BRUGE NOGET A LA DET HER:
+            # DET ER IKKE HELT DEN SAMME METODE. HER VÆLGES IKKE ALTID DET BILLEDE MED FÆRREST MATCHES FØRST.
+            # Choose random image to start off
+            # random_index = random.randint(0, len(images_sorted_by_elo)-1)
+            # left = max(0, random_index - num_neighbours//2)
+            # right = min(len(images_sorted_by_elo), random_index + num_neighbours//2)
+            # # Sort only the images with similar elo scores by number of matches
+            # sub_images_sorted_by_matches = sorted(images_sorted_by_elo[left:right], key=lambda x: self.scores[os.path.basename(x)]['matches'])
+            # image1 = sub_images_sorted_by_matches[0]
+            # images_sorted_by_elo.remove(image1)
+            # image2 = sub_images_sorted_by_matches[1]
+            # images_sorted_by_elo.remove(image2)
             image_pairings.append((image1, image2))
 
         return image_pairings
