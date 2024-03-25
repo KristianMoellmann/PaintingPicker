@@ -1,6 +1,7 @@
 docs/site/
 
 data/
+!src/data/
 
 # test cache
 manual_test/

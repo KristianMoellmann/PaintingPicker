@@ -13,7 +13,7 @@ class Rating(tk.CTk):
         super().__init__()
         self.name = name
         self.folder = folder
-        self.scores_folder = Path(f'reports/scores/{os.path.basename(folder)}')
+        self.scores_folder = Path(f'reports/scores/{os.path.basename(folder)}/elo')
 
         self.title('Rating')
         self.geometry('1280x720')
@@ -38,9 +38,11 @@ class Rating(tk.CTk):
         self.canvas_right.configure(bg='black')
         self.canvas_right.place(relx=0.75, rely=0.5, anchor=tk.CENTER)
 
-        self.scores = self.load_image_scores()
+        # Load the scores
+        self.scores = self.load_image_elo_scores()
         self.load_images()
 
+        self.bind('<Up>', self.on_up_key)
         self.bind('<Left>', self.on_left_key)
         self.bind('<Right>', self.on_right_key)
 
@@ -50,6 +52,7 @@ class Rating(tk.CTk):
 
         # Escape key to close the window
         self.bind('<Escape>', lambda e: self.destroy())
+    
     
     def create_image_pairings(self):
         # Pair each image with another image randomly. If odd number, one image will have two pairings
@@ -65,38 +68,37 @@ class Rating(tk.CTk):
                 random_image = random.choice(self.images)
             image_pairings.append((images[0], random_image))
         return image_pairings
+        
     
-    def load_image_scores(self):
+    def load_image_elo_scores(self):
         # Load image scores from json file...
-        # If score folder does not exist, create it
         if not self.scores_folder.exists():
             self.scores_folder.mkdir()
         # If scores file does not exist, create it
         scores_file = Path(f'{self.scores_folder}/{self.name}.json')
         if not scores_file.exists():
+            scores = {
+                os.path.basename(image): {"elo": 1400, "matches": 0, "wins": 0, "losses": 0, "draws": 0}
+                for image in self.images
+            }
             with open(scores_file, 'w') as f:
-                # TODO: Change to include the necessary metrics
-                scores = {}
-                for image in self.images:
-                    scores[os.path.basename(image)] = 0
-                f.write(json.dumps(scores))
+                f.write(json.dumps(scores, indent=4))
         else:
             with open(scores_file, 'r') as f:
                 scores = json.load(f)
-        sum = 0
-        for score in scores.values():
-            sum += score
-        print(f'Loaded scores for {self.name} with a total of {sum} votes')
         return scores
+    
     
     def save_image_scores(self):
         scores_file = Path(f'{self.scores_folder}/{self.name}.json')
         with open(scores_file, 'w') as f:
-            f.write(json.dumps(self.scores))
+            f.write(json.dumps(self.scores, indent=4))
+
     
     def restart_round(self):
         self.match_index = 0
         return self.create_image_pairings()
+
 
     def load_images(self):
         if self.match_index >= self.number_of_pairings:
@@ -123,6 +125,7 @@ class Rating(tk.CTk):
         # Reset canvas background
         self.update_header()
 
+
     def resize_image(self, image, max_size):
         width, height = image.width, image.height
         if width > height:
@@ -133,29 +136,115 @@ class Rating(tk.CTk):
             new_width = int(max_size * width / height)
         return image.resize((new_width, new_height))
 
+
     def update_header(self):
         self.header.configure(text=f'Match {self.match_index} of {self.number_of_pairings}')
 
+
+    def calculate_elo(self, ra, rb, sa, sb, K=32):
+        """
+        Calculate the new Elo ratings for two players.
+
+        Parameters:
+        ra (float): The current rating of player A.
+        rb (float): The current rating of player B.
+        sa (float): The score of player A (1 for win, 0.5 for draw, 0 for loss).
+        sb (float): The score of player B (1 for win, 0.5 for draw, 0 for loss).
+        K (int, optional): The K-factor, which determines how much the ratings change. Default is 32.
+
+        Returns:
+        tuple: The new ratings for player A and player B.
+        """
+            
+        # Calculate the expected score for each player
+        Ea = 1 / (1 + 10 ** ((rb - ra) / 400))
+        Eb = 1 / (1 + 10 ** ((ra - rb) / 400))
+        
+        # Update the ratings
+        ra_new = ra + K * (sa - Ea)
+        rb_new = rb + K * (sb - Eb)
+        
+        return ra_new, rb_new
+    
+
     def on_left_key(self, event):
         self.canvas_left.configure(bg='green')
-        self.scores[self.left_image_name] += 1 # TODO: Change to a function which calculates the accurate ELO between two images
+        
+        # Extract current Elo scores
+        left_score = self.scores[self.left_image_name]["elo"]
+        right_score = self.scores[self.right_image_name]["elo"]
+        
+        # Calculate new Elo scores with left image as winner
+        left_score_new, right_score_new = self.calculate_elo(left_score, right_score, 1, 0)
+        
+        # Update scores and record the match
+        self.scores[self.left_image_name]["elo"] = left_score_new
+        self.scores[self.left_image_name]["matches"] += 1
+        self.scores[self.left_image_name]["wins"] += 1
+        
+        self.scores[self.right_image_name]["elo"] = right_score_new
+        self.scores[self.right_image_name]["matches"] += 1
+        self.scores[self.right_image_name]["losses"] += 1
+        
         self.save_image_scores()
         self.load_images()
+
     
     def on_right_key(self, event):
-        self.canvas_right.configure(bg='green')
-        self.scores[self.right_image_name] += 1
+        self.canvas_left.configure(bg='green')
+        
+        # Extract current Elo scores
+        left_score = self.scores[self.left_image_name]["elo"]
+        right_score = self.scores[self.right_image_name]["elo"]
+        
+        # Calculate new Elo scores with left image as winner
+        left_score_new, right_score_new = self.calculate_elo(left_score, right_score, 1, 0)
+        
+        # Update scores and record the match
+        self.scores[self.left_image_name]["elo"] = left_score_new
+        self.scores[self.left_image_name]["matches"] += 1
+        self.scores[self.left_image_name]["losses"] += 1
+        
+        self.scores[self.right_image_name]["elo"] = right_score_new
+        self.scores[self.right_image_name]["matches"] += 1
+        self.scores[self.right_image_name]["wins"] += 1
+        
         self.save_image_scores()
         self.load_images()
+        
+        
+    def on_up_key(self, event):
+        self.canvas_left.configure(bg='green')
+        
+        # Extract current Elo scores
+        left_score = self.scores[self.left_image_name]["elo"]
+        right_score = self.scores[self.right_image_name]["elo"]
+        
+        # Calculate new Elo scores with left image as winner
+        left_score_new, right_score_new = self.calculate_elo(left_score, right_score, 1, 0)
+        
+        # Update scores and record the match
+        self.scores[self.left_image_name]["elo"] = left_score_new
+        self.scores[self.left_image_name]["matches"] += 1
+        self.scores[self.left_image_name]["draws"] += 1
+        
+        self.scores[self.right_image_name]["elo"] = right_score_new
+        self.scores[self.right_image_name]["matches"] += 1
+        self.scores[self.right_image_name]["draws"] += 1
+        
+        self.save_image_scores()
+        self.load_images()
+        
     
     def run(self):
         self.mainloop()
+
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("name", default=None, type=str, help="Name of the user")
     parser.add_argument("--folder", default='data/fewer_imgs', type=str, help="Folder containing images")
     args = parser.parse_args()
-
+    
     app = Rating(args.name, args.folder)
     app.run()
