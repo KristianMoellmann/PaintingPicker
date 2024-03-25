@@ -14,7 +14,7 @@ class Scale(tk.CTk):
         super().__init__()
         self.name = name
         self.folder = folder
-        self.scores_folder = Path(f'reports/scores/{os.path.basename(folder)}/scale_{scale}')
+        self.scores_folder = Path(f'scores/{os.path.basename(folder)}/scale_{scale}')
 
         self.title('Rating')
         self.geometry('1280x720')
@@ -67,7 +67,7 @@ class Scale(tk.CTk):
     def load_image_scores(self):
         scores = {}
         if not os.path.exists(self.scores_folder):
-            os.makedirs(self.scores_folder)
+            os.makedirs(self.scores_folder, exist_ok=True)
         scores_file = f"{self.scores_folder}/{self.name}.json"
         if not os.path.exists(scores_file):
             with open(scores_file, 'w') as f:

@@ -9,11 +9,11 @@ import json
 
 class Rating(tk.CTk):
 
-    def __init__(self, name: str, folder: str):
+    def __init__(self, name: str, folder: str, strategy: str = 'random'):
         super().__init__()
         self.name = name
         self.folder = folder
-        self.scores_folder = Path(f'reports/scores/{os.path.basename(folder)}/elo')
+        self.scores_folder = Path(f'scores/{os.path.basename(folder)}/elo')
 
         self.title('Rating')
         self.geometry('1280x720')
@@ -23,23 +23,11 @@ class Rating(tk.CTk):
         self.left_image_name = None
         self.right_image_name = None
 
-        self.match_index = 0
-        self.image_pairings = self.restart_round()
-        self.number_of_pairings = len(self.image_pairings)
-
-        # Write the votes as a header
-        self.header = tk.CTkLabel(self, text=f'Match {1} of {self.number_of_pairings}', font=('Arial', 20))
-        self.header.pack(pady=10)
-
         # Create two 600x600 canvases side by side but centered
         self.canvas_left = tk.CTkCanvas(self, width=600, height=600)
         self.canvas_left.place(relx=0.25, rely=0.5, anchor=tk.CENTER)
         self.canvas_right = tk.CTkCanvas(self, width=600, height=600)
         self.canvas_right.place(relx=0.75, rely=0.5, anchor=tk.CENTER)
-
-        # Load the scores
-        self.scores = self.load_image_elo_scores()
-        self.load_images()
 
         self.bind('<Up>', self.on_up_key)
         self.bind('<Left>', self.on_left_key)
@@ -51,7 +39,31 @@ class Rating(tk.CTk):
 
         # Escape key to close the window
         self.bind('<Escape>', lambda e: self.destroy())
-    
+
+        # Load the scores
+        self.scores = self.load_image_elo_scores()
+
+        if strategy == 'random':
+
+            self.match_index = 0
+            self.image_pairings = self.restart_round()
+            self.number_of_pairings = len(self.image_pairings)
+
+            # Write the votes as a header
+            self.header = tk.CTkLabel(self, text=f'Match {1} of {self.number_of_pairings}', font=('Arial', 20))
+            self.header.pack(pady=10)
+
+            self.load_images()
+
+        elif strategy == 'smart':
+            self.match_index = 0
+            # Write the votes as a header
+            self.header = tk.CTkLabel(self, text=f'Match {1}', font=('Arial', 20))
+            self.header.pack(pady=10)
+
+            # TODO: CHANGE TO USE SMART STRATEGY IF CHOSEN
+            # Write new load_image function
+            pass
     
     def create_image_pairings(self):
         # Pair each image with another image randomly. If odd number, one image will have two pairings
@@ -71,8 +83,7 @@ class Rating(tk.CTk):
     
     def load_image_elo_scores(self):
         # Load image scores from json file...
-        if not self.scores_folder.exists():
-            self.scores_folder.mkdir()
+        self.scores_folder.mkdir(parents=True, exist_ok=True)
         # If scores file does not exist, create it
         scores_file = Path(f'{self.scores_folder}/{self.name}.json')
         if not scores_file.exists():
