@@ -119,6 +119,10 @@ class Rating(tk.CTk):
         else:
             with open(elo_scores_file, 'r') as f:
                 scores = json.load(f)
+            
+            # Validate that all images have a score
+            for image in self.images:
+                assert os.path.basename(image) in scores, f"Image {os.path.basename(image)} is missing from the scores file"
         
         # Load match up history from json file
         history_file = Path(f'{self.scores_folder}/{self.name}_history.json')
