@@ -119,6 +119,10 @@ class Rating(tk.CTk):
         else:
             with open(elo_scores_file, 'r') as f:
                 scores = json.load(f)
+            
+            # Validate that all images have a score
+            for image in self.images:
+                assert os.path.basename(image) in scores, f"Image {os.path.basename(image)} is missing from the scores file"
         
         # Load match up history from json file
         history_file = Path(f'{self.scores_folder}/{self.name}_history.json')
@@ -318,7 +322,7 @@ class Rating(tk.CTk):
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("name", default=None, type=str, help="Name of the user")
-    parser.add_argument("--folder", default='data/fewer_imgs', type=str, help="Folder containing images")
+    parser.add_argument("--folder", default='data/processed/full', type=str, help="Folder containing images")
     parser.add_argument("--strategy", default='random', choices=["random", "smart"], type=str, help="Strategy for selecting images")
     args = parser.parse_args()
     
