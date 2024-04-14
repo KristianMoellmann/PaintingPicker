@@ -1,26 +1,21 @@
 import torch
+import torch.nn as nn
 
-class MyNeuralNet(torch.nn.Module):
-    """ Basic neural network class. 
-    
-    Args:
-        in_features: number of input features
-        out_features: number of output features
-    
-    """
-    def __init__(self, in_features: int, out_features: int) -> None:
-        self.l1 = torch.nn.Linear(in_features, 500)
-        self.l2 = torch.nn.Linear(500, out_features)
-        self.r = torch.nn.ReLU()
+class ScaleNet(nn.Module):
+
+    def __init__(self, feature_extractor: nn.Module) -> None:
+        super(ScaleNet, self).__init__()
+        self.feature_extractor = feature_extractor
+        self.feature_extractor.eval()
+        self.l1 = nn.Linear(512, 256)  # Change 512 to the number of features extracted by the feature extractor
+        self.r = nn.ReLU()
+        self.l2 = nn.Linear(256, 1)
+        self.sigmoid = nn.Sigmoid()
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass of the model.
-        
-        Args:
-            x: input tensor expected to be of shape [N,in_features]
-
-        Returns:
-            Output tensor with shape [N,out_features]
-
-        """
-        return self.l2(self.r(self.l1(x)))
+        features = self.feature_extractor(x)
+        x = self.l1(features)
+        x = self.r(x)
+        x = self.l2(x)
+        x = self.sigmoid(x)
+        return x.flatten()
