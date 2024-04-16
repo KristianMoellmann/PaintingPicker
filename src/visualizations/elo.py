@@ -4,10 +4,30 @@ from argparse import ArgumentParser
 from pathlib import Path
 from datetime import datetime
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def plot_elo_scores(scores: dict):
-    pass
+    
+    all_elos = [val["elo"] for _, val in scores.items()]
+    print(f"Min ELO: {min(all_elos):.2f}\nMax ELO: {max(all_elos):.2f}\nAverage ELO: {sum(all_elos) / len(all_elos):.2f}\nUnique ELOs: {len(set(all_elos))}")
+    
+    all_elos_with_noise = [elo + (15 * (np.random.rand()*2 - 1)) for elo in all_elos]
+    
+    # Plot histogram of elos
+    bins = int(len(set(all_elos)) / 2)
+    # figsize
+    plt.figure(figsize=(5, 3.5))
+    plt.grid(True, linestyle='--', alpha=0.5, zorder=0)  # Add grid lines behind histogram
+    plt.hist(all_elos, bins=bins, zorder=3, label='Original')
+    plt.hist(all_elos_with_noise, bins=bins, zorder=4, alpha=0.4, color='red', label='Simulation')
+    plt.xlabel("ELO")
+    plt.ylabel("Frequency")
+    plt.legend()
+    # plt.title(f"ELO distribution\nMin: {min(all_elos):.2f}, Max: {max(all_elos):.2f}, Average: {sum(all_elos) / len(all_elos):.2f}, Unique: {len(set(all_elos))}")
+    plt.tight_layout()
+    plt.savefig(f"reports/figures/elo/elo_distribution_{args.name}.pdf")
+    plt.show()
 
 
 def plot_elo_history(history: dict):
@@ -37,6 +57,7 @@ def plot_elo_history(history: dict):
     plt.axvline(x=sum(sessions_time) / len(sessions_time), color='r', linestyle='dashed', linewidth=1)
     plt.text(sum(sessions_time) / len(sessions_time), 200, f"Average: {sum(sessions_time) / len(sessions_time):.2f}", rotation=-90)
     plt.tight_layout()
+    plt.savefig(f"reports/figures/elo/time_difference_{args.name}.pdf")
     plt.show()
 
     # Plot bar chart of votes with counts on top of the bars
@@ -46,14 +67,15 @@ def plot_elo_history(history: dict):
     plt.xticks(range(len(sessions_votes)), ["Left", "Right", "Tie"])
     plt.title("Votes")
     plt.tight_layout()
+    plt.savefig(f"reports/figures/elo/votes_{args.name}.pdf")
     plt.show()
-
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('name', type=str, help="Name of the user")
-    parser.add_argument('--folder', default='data/fewer_imgs', type=str, help="Folder containing images")
+    parser.add_argument('--folder', default='data/processed/full', type=str, help="Folder containing images")
+    parser.add_argument('--plot', default='both', choices=['both', 'scores', 'history'], type=str, help="Plot to show (scores or history)")
     args = parser.parse_args()
 
     scores_file = Path(f'scores/{os.path.basename(args.folder)}/elo/{args.name}.json')
@@ -65,12 +87,17 @@ if __name__ == '__main__':
     if not history_file.exists():
         raise FileNotFoundError(f"History file not found: {history_file}")
     
+    if not os.path.exists('reports/figures/elo'):
+        os.makedirs('reports/figures/elo')
+    
     with open(scores_file, 'r') as f:
         scores = json.load(f)
 
-    plot_elo_scores(scores)
+    if args.plot == 'scores' or args.plot == 'both':
+        plot_elo_scores(scores)
     
     with open(history_file, 'r') as f:
         history = json.load(f)
 
-    plot_elo_history(history)
+    if args.plot == 'history' or args.plot == 'both':
+        plot_elo_history(history)
