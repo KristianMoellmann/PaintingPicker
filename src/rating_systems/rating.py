@@ -8,16 +8,21 @@ import os
 import json
 from datetime import datetime
 from tqdm import tqdm
+import numpy as np
 
 class Rating(tk.CTk):
 
-    def __init__(self, name: str, folder: str, strategy: str = 'random'):
+    def __init__(self, name: str, folder: str, strategy: str = 'random', simulator: bool = False, total_matches: int = 2500):
         super().__init__()
         self.name = name
         self.strategy = strategy
         self.folder = folder
         self.scores_folder = Path(f'scores/{os.path.basename(folder)}/elo')
         self.session = None
+        self.simulator = simulator
+        self.total_matches = total_matches
+        self.match_count = 0
+        self.initialised = False
 
         self.title('Rating')
         self.geometry('1280x720')
@@ -54,6 +59,11 @@ class Rating(tk.CTk):
         self.header = tk.CTkLabel(self, text=f'Match {1} of {self.number_of_pairings}', font=('Arial', 20))
         self.header.pack(pady=10)
 
+        # Add simulate button to activate simulator
+        if self.simulator:
+            button = tk.CTkButton(self, text="Simulate", command=self.simulate_vote)
+            button.place(relx=0.5, rely=0.95, anchor=tk.CENTER)
+
         self.load_images()
 
     
@@ -70,6 +80,7 @@ class Rating(tk.CTk):
             while random_image == images[0]:
                 random_image = random.choice(self.images)
             image_pairings.append((images[0], random_image))
+        self.number_of_pairings = len(image_pairings)
         return image_pairings
     
     
@@ -101,6 +112,8 @@ class Rating(tk.CTk):
 
             image_pairings.append((image1, image2))
             pbar.update(1)
+        
+        self.number_of_pairings = len(image_pairings)
         return image_pairings
 
     
@@ -167,11 +180,11 @@ class Rating(tk.CTk):
         self.left_image_name = os.path.basename(image1_path)
         self.right_image_name = os.path.basename(image2_path)
 
-        image1 = Image.open(image1_path)
-        image2 = Image.open(image2_path)
+        self.raw_image1 = Image.open(image1_path)
+        self.raw_image2 = Image.open(image2_path)
         # Resize images to fit the canvas such that the largest dimension is 600 but keeps ratio
-        image1 = self.resize_image(image1, 600)
-        image2 = self.resize_image(image2, 600)
+        image1 = self.resize_image(self.raw_image1, 600)
+        image2 = self.resize_image(self.raw_image2, 600)
         # Resize canvas to fit the image
         self.canvas_left.configure(width=image1.width, height=image1.height)
         self.canvas_right.configure(width=image2.width, height=image2.height)
@@ -198,6 +211,28 @@ class Rating(tk.CTk):
     def update_header(self):
         self.header.configure(text=f'Match {self.match_index} of {self.number_of_pairings}')
 
+        self.match_count += 1
+
+        if self.match_count > self.total_matches:
+            self.destroy()
+        if self.initialised:
+            if self.simulator:
+                self.after(10, self.simulate_vote)
+    
+    def simulate_vote(self):
+        if not self.initialised:
+            self.initialised = True
+        left_image = self.raw_image1
+        right_image = self.raw_image2
+        # Pick the darkest image
+        left_score = np.mean(np.array(left_image))
+        right_score = np.mean(np.array(right_image))
+        if left_score < right_score:
+            self.on_left_key(None)
+            print("LEFT")
+        else:
+            self.on_right_key(None)
+            print("RIGHT")
 
     def calculate_elo(self, ra, rb, sa, sb, K=32):
         """
@@ -324,7 +359,9 @@ if __name__ == '__main__':
     parser.add_argument("name", default=None, type=str, help="Name of the user")
     parser.add_argument("--folder", default='data/processed/full', type=str, help="Folder containing images")
     parser.add_argument("--strategy", default='random', choices=["random", "smart"], type=str, help="Strategy for selecting images")
+    parser.add_argument("--simulator", default=False, action='store_true', help="Run the simulator")
+    parser.add_argument("--total-matches", default=2500, type=int, help="Total number of matches to run")
     args = parser.parse_args()
-    
-    app = Rating(args.name, args.folder, args.strategy)
+
+    app = Rating(args.name, args.folder, args.strategy, args.simulator, args.total_matches)
     app.run()
