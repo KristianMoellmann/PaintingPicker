@@ -6,6 +6,9 @@ import json
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
+import random
+from pathlib import Path
+import shutil
 
 
 def load_match_data(filename):
@@ -100,15 +103,97 @@ def plot_unique_wins(pure_wins, path_name):
     plt.show()
 
 
+def create_upcoming_match_list(pure_wins):
+    upcoming_matches = []
+    for image in pure_wins.keys():
+        for loser in pure_wins[image]:
+            upcoming_matches.append((image, loser))
+    return upcoming_matches
+
+
+
+def calculate_elo(ra, rb, sa, sb, K=32):
+    """
+    Calculate the new Elo ratings for two players.
+
+    Parameters:
+    ra (float): The current rating of player A.
+    rb (float): The current rating of player B.
+    sa (float): The score of player A (1 for win, 0.5 for draw, 0 for loss).
+    sb (float): The score of player B (1 for win, 0.5 for draw, 0 for loss).
+    K (int, optional): The K-factor, which determines how much the ratings change. Default is 32.
+
+    Returns:
+    tuple: The new ratings for player A and player B.
+    """
+        
+    # Calculate the expected score for each player
+    Ea = 1 / (1 + 10 ** ((rb - ra) / 400))
+    Eb = 1 / (1 + 10 ** ((ra - rb) / 400))
+    
+    # Update the ratings
+    ra_new = ra + K * (sa - Ea)
+    rb_new = rb + K * (sb - Eb)
+    
+    return ra_new, rb_new
+    
+
+def simulate_matches(upcoming_matches, scores):
+    # first we randomly shuffle the matches (TODO: implement a better way to make order of matches)
+    random.shuffle(upcoming_matches)
+    
+    # Idea! After every 100 match the order of the matches should be sorted 
+    # according to how many matches they have had 
+    for match in upcoming_matches:
+            winner = match[0]
+            loser = match[1]
+            winner_score = scores[winner]["elo"]
+            loser_score = scores[match[1]]["elo"]
+
+            winner_score_new, loser_score_new = calculate_elo(winner_score, loser_score, 1, 0)
+            
+            # Update scores and record the match
+            scores[winner]["elo"] = winner_score_new
+            scores[winner]["matches"] += 1
+            scores[winner]["wins"] += 1
+            
+            scores[loser]["elo"] = loser_score_new
+            scores[loser]["matches"] += 1
+            scores[loser]["losses"] += 1
+            
+    return scores
+    
+
+def save_image_scores(new_scores, path_name, original_path):
+    scores_file = Path(f'scores/full/elo/{path_name}_logic.json')
+    if not scores_file.exists():
+        # Create the directory if it doesn't exist
+        scores_file.parent.mkdir(parents=True, exist_ok=True)
+        # Copy the original file to the new location
+        shutil.copyfile(original_path, scores_file)
+    with open(scores_file, 'w') as f:
+        f.write(json.dumps(new_scores, indent=4))
+        
 
 def main():
-    for path_name in ["kasper", "kristoffer", "Kristian", "darkness", "darkness_2500"]:
-        image_names = load_match_data(f'scores/full/elo/{path_name}.json')
+    for path_name in ["kasper"]: # ["kasper", "kristoffer", "Kristian", "darkness", "darkness_2500"]:
+        # Load data
+        original_path = f'scores/full/elo/{path_name}.json'
+        image_names_with_elo = load_match_data(original_path)
         match_data = load_match_data(f'scores/full/elo/{path_name}_history.json')
-        init_wins_and_loses = initialize_dictionarioary(match_data, image_names)
+        
+        # find pure wisn
+        init_wins_and_loses = initialize_dictionarioary(match_data, image_names_with_elo)
         pure_wins = find_transitative_wins_and_loses(init_wins_and_loses)
         plot_unique_wins(pure_wins, path_name)
-
+        
+        # simulate the elo rating system
+        upcoming_matches = create_upcoming_match_list(pure_wins)
+        new_scores = simulate_matches(upcoming_matches, image_names_with_elo)
+        
+        # save the new scores
+        save_image_scores(new_scores, path_name, original_path)
+        
 
 if __name__ == "__main__":
     main()
