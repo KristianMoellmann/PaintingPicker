@@ -34,7 +34,7 @@ def embed_images(folder: str, model: str, device: str) -> None:
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('dataset', type=str, choices=["micro", "tiny", "full"], help="Folder containing images")
+    parser.add_argument('dataset', type=str, default="full", help="Folder containing images")
     parser.add_argument('--model', default='ViT-B/32', type=str, help="Model to use")
     args = parser.parse_args()
 
