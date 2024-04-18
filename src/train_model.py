@@ -33,14 +33,33 @@ class ScaleNetWithClip(nn.Module):
 
 
 class ScaleNet(nn.Module):
+    name: str = 'ScaleNet'
 
     def __init__(self, input_size: int=512) -> None:
         super(ScaleNet, self).__init__()
-        self.l1 = nn.Linear(input_size, 50)
+        self.l1 = nn.Linear(input_size, 10)
         self.r = nn.ReLU()
-        self.dropout = nn.Dropout(0.5)  # Add dropout layer
-        self.l2 = nn.Linear(50, 20)  # Add another linear layer
-        self.l3 = nn.Linear(20, 1)  # Add final linear layer
+        self.l2 = nn.Linear(10, 1)
+        self.sigmoid = nn.Sigmoid()
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.l1(x)
+        x = self.r(x)
+        x = self.l2(x)
+        x = self.sigmoid(x)
+        return x.flatten()
+
+
+class ScaleNetV2(nn.Module):
+    name: str = 'ScaleNetV2'
+
+    def __init__(self, input_size: int=512) -> None:
+        super(ScaleNetV2, self).__init__()
+        self.l1 = nn.Linear(input_size, 128)
+        self.r = nn.ReLU()
+        self.dropout = nn.Dropout(0.7)  # Add dropout layer
+        self.l2 = nn.Linear(128, 32)  # Add another linear layer
+        self.l3 = nn.Linear(32, 1)  # Add final linear layer
         self.sigmoid = nn.Sigmoid()
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -97,6 +116,8 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
         train_losses.append(train_loss)
         val_losses.append(val_loss)
         pbar.set_postfix({'Train loss': train_loss, 'Val loss': val_loss})      
+
+    print(f"Best validation loss: {best_val_loss:.3f}")
 
     return train_losses, val_losses
 
@@ -159,7 +180,7 @@ def plot_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: c
     test_targets = torch.cat(test_targets).cpu() * (r_max - r_min) + r_min
 
     # Plot histofram of test predicitons and targets
-    fig, axes = plt.subplots(1, 2, figsize=(12, 8))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
     for ax, data, title in zip(axes, [test_predictions, test_targets], ['Predictions', 'Targets']):
         ax.hist(data, bins=100, alpha=0.5, label=title, color='blue')
         ax.axvline(data.mean(), color='red', linestyle='dashed', linewidth=2)
@@ -169,6 +190,7 @@ def plot_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: c
         ax.set_title(title)
     fig.suptitle(f"Predictions on test set, test loss: {test_loss:.2f}")
     plt.tight_layout()
+    plt.savefig(f"reports/figures/training/{args.name}_{args.scoring}_{args.score_type}_{model.name}_predictions.pdf")
     plt.show()
 
 
@@ -183,6 +205,7 @@ if __name__=='__main__':
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate to use")
     parser.add_argument('--embed_now', action='store_true', help="Embed the images now")
     parser.add_argument('--seed', default=42, type=int, help="Seed to use for reproducibility")
+    parser.add_argument('--score_type', default='original', choices=['original', 'logic', 'clip'], help="Decide which score type to use")
     args = parser.parse_args()
 
     # Load the feautre extractor and the preprocess function
@@ -202,10 +225,17 @@ if __name__=='__main__':
     
     else:
         args.folder = args.folder.replace('processed', 'embedded')
-        model = ScaleNet().to(device)
+        model = ScaleNetV2().to(device)
 
     # Load the data
-    scoring_path = Path(f'scores/{os.path.basename(args.folder)}/{args.scoring}/{args.name}.json')
+    if args.score_type == 'original':
+        scoring_path = Path(f'scores/{os.path.basename(args.folder)}/{args.scoring}/{args.name}.json')
+    elif args.score_type == 'logic':
+        scoring_path = Path(f'scores/{os.path.basename(args.folder)}/{args.scoring}/{args.name}_logic.json')
+    elif args.score_type == 'clip':
+        scoring_path = Path(f'scores/{os.path.basename(args.folder)}/{args.scoring}/{args.name}_clip.json')
+    else:
+        raise ValueError("score_type must be one of 'original', 'logic', 'clip'")
 
     if not scoring_path.exists():
         raise FileNotFoundError(f"Scoring file {scoring_path} does not exist")
@@ -256,7 +286,8 @@ if __name__=='__main__':
     plt.legend()
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.title('Training and validation losses')
+    plt.title(f'Training and validation losses. Best val loss: {min(val_losses):.3f}')
+    plt.savefig(f"reports/figures/training/{args.name}_{args.scoring}_{args.score_type}_{model.name}_loss.pdf")
     plt.show()
 
     # Load the best model
