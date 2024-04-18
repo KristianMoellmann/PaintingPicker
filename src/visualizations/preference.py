@@ -52,7 +52,8 @@ if __name__=="__main__":
         ratings = json.load(f)
     
     # Get the image names
-    image_paths = list(f"data/processed/{args.dataset}/{image_name}" for image_name in ratings.keys())
+    # image_paths = list(f"data/processed/{args.dataset}/{image_name}" for image_name in ratings.keys())
+    image_paths = list(f"data/raw/{image_name}" for image_name in ratings.keys())
 
     # Sort the image names by their ratings
     image_paths.sort(key=lambda x: ratings[os.path.basename(x)]["elo"], reverse=True)
