@@ -102,7 +102,7 @@ def plot_unique_wins(pure_wins, path_name):
 
 
 def main():
-    for path_name in ["kasper", "kristoffer", "Kristian"]:
+    for path_name in ["kasper", "kristoffer", "Kristian", "darkness", "darkness_2500"]:
         image_names = load_match_data(f'scores/full/elo/{path_name}.json')
         match_data = load_match_data(f'scores/full/elo/{path_name}_history.json')
         init_wins_and_loses = initialize_dictionarioary(match_data, image_names)
