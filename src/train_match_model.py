@@ -18,10 +18,10 @@ class MatchNet(nn.Module):
             nn.Linear(2*input_size, 128),
             nn.ReLU(),
             nn.Dropout(p),
-            nn.Linear(128, 32),
+            nn.Linear(128, 16),
             nn.ReLU(),
             nn.Dropout(p),
-            nn.Linear(32, 2),
+            nn.Linear(16, 2),
         )
         
     
@@ -38,6 +38,7 @@ class MatchNet(nn.Module):
         # Add the two outputs but change the order of the second one
         x = x1 + torch.cat([x2[:, 1].unsqueeze(1), x2[:, 0].unsqueeze(1)], dim=1)
         # OTHER IDEA: MULTIPLY THE SECOND OUTPUT BY -1
+        # x = x1 - x2
         return x
 
 
@@ -129,8 +130,8 @@ if __name__=='__main__':
     parser.add_argument('name', type=str, help="Name of the user")
     parser.add_argument('--folder', default='data/processed/full', type=str, help="Folder containing images")
     parser.add_argument('--model', default='ViT-B/32', type=str, help="Model to use")
-    parser.add_argument('--epochs', default=200, type=int, help="Number of epochs to train the model")
-    parser.add_argument('--batch_size', default=32, type=int, help="Batch size to use")
+    parser.add_argument('--epochs', default=100, type=int, help="Number of epochs to train the model")
+    parser.add_argument('--batch-size', default=32, type=int, help="Batch size to use")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate to use")
     parser.add_argument('--seed', default=42, type=int, help="Seed to use for reproducibility")
     parser.add_argument('--duplicates', action='store_true', help="Whether to create duplicates of the data")
@@ -142,8 +143,8 @@ if __name__=='__main__':
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     args.folder = args.folder.replace('processed', 'embedded')
-    # model = MatchNet().to(device)
-    model = MatchInvariantNet().to(device)
+    model = MatchNet().to(device)
+    # model = MatchInvariantNet().to(device)
 
     # Load the data
     scoring_path = Path(f'scores/{os.path.basename(args.folder)}/{scoring}/{args.name}_history.json')

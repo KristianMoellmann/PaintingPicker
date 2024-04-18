@@ -12,7 +12,7 @@ def plot_elo_scores(scores: dict):
     all_elos = [val["elo"] for _, val in scores.items()]
     print(f"Min ELO: {min(all_elos):.2f}\nMax ELO: {max(all_elos):.2f}\nAverage ELO: {sum(all_elos) / len(all_elos):.2f}\nUnique ELOs: {len(set(all_elos))}")
     
-    all_elos_with_noise = [elo + (15 * (np.random.rand()*2 - 1)) for elo in all_elos]
+    # all_elos_with_noise = [elo + (15 * (np.random.rand()*2 - 1)) for elo in all_elos]
     
     # Plot histogram of elos
     bins = int(len(set(all_elos)) / 2)
@@ -20,7 +20,7 @@ def plot_elo_scores(scores: dict):
     plt.figure(figsize=(5, 3.5))
     plt.grid(True, linestyle='--', alpha=0.5, zorder=0)  # Add grid lines behind histogram
     plt.hist(all_elos, bins=bins, zorder=3, label='Original')
-    plt.hist(all_elos_with_noise, bins=bins, zorder=4, alpha=0.4, color='red', label='Simulation')
+    # plt.hist(all_elos_with_noise, bins=bins, zorder=4, alpha=0.4, color='red', label='Simulation')
     plt.xlabel("ELO")
     plt.ylabel("Frequency")
     plt.legend()
