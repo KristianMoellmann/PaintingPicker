@@ -79,13 +79,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     scores_file = Path(f'scores/{os.path.basename(args.folder)}/elo/{args.name}.json')
-    history_file = Path(f'scores/{os.path.basename(args.folder)}/elo/{args.name}_history.json')
+    # history_file = Path(f'scores/{os.path.basename(args.folder)}/elo/{args.name}_history.json')
 
     if not scores_file.exists():
         raise FileNotFoundError(f"Scores file not found: {scores_file}")
 
-    if not history_file.exists():
-        raise FileNotFoundError(f"History file not found: {history_file}")
+    # if not history_file.exists():
+    #     raise FileNotFoundError(f"History file not found: {history_file}")
     
     if not os.path.exists('reports/figures/elo'):
         os.makedirs('reports/figures/elo')

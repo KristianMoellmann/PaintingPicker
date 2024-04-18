@@ -176,7 +176,7 @@ def save_image_scores(new_scores, path_name, original_path):
         
 
 def main():
-    for path_name in ["kasper"]: # ["kasper", "kristoffer", "Kristian", "darkness", "darkness_2500"]:
+    for path_name in ["kristoffer"]: # ["kasper", "kristoffer", "Kristian", "darkness", "darkness_2500"]:
         # Load data
         original_path = f'scores/full/elo/{path_name}.json'
         image_names_with_elo = load_match_data(original_path)
