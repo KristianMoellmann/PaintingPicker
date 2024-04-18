@@ -69,6 +69,41 @@ class EmbeddedScaleDataset(Dataset):
         return sample, target
 
 
+class EmbeddedEloDataset(Dataset):
+
+    def __init__(self, image_folder: str, labels: dict):
+        self.data, self.target = self.load_images(image_folder, labels)
+
+    def load_images(self, image_folder: str, labels: dict):
+        data = []
+        target = []
+        for image_name, scoring in labels.items():
+            image_name = image_name.replace('.jpg', '.pt')
+            image_file = os.path.join(image_folder, image_name)
+            data.append(torch.load(image_file))
+            score = scoring['elo']
+            target.append(score)
+
+        data = torch.stack(data)
+        target = torch.tensor(target, dtype=torch.float32)
+
+        # Normalize the target between 0 and 1
+        self.r_min = target.min().item()
+        self.r_max = target.max().item()
+        target = (target - self.r_min) / (self.r_max - self.r_min)
+
+        return data, target
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        sample = self.data[idx]
+        target = self.target[idx]
+            
+        return sample, target
+
+
 class EmbeddedMatchDataSplit:
 
     def __init__(self, image_folder: str, labels: dict, split: tuple[float], seed: int = None):
