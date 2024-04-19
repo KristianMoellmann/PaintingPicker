@@ -9,6 +9,7 @@ import numpy as np
 import random
 from pathlib import Path
 import shutil
+from datetime import datetime
 
 
 def load_match_data(filename):
@@ -108,8 +109,10 @@ def create_upcoming_match_list(pure_wins):
     for image in pure_wins.keys():
         for loser in pure_wins[image]:
             upcoming_matches.append((image, loser))
+            
+    # now we randomly shuffle the matches (TODO: implement a better way to make order of matches)
+    random.shuffle(upcoming_matches)
     return upcoming_matches
-
 
 
 def calculate_elo(ra, rb, sa, sb, K=32):
@@ -139,8 +142,7 @@ def calculate_elo(ra, rb, sa, sb, K=32):
     
 
 def simulate_matches(upcoming_matches, scores):
-    # first we randomly shuffle the matches (TODO: implement a better way to make order of matches)
-    random.shuffle(upcoming_matches)
+
     
     # Idea! After every 100 match the order of the matches should be sorted 
     # according to how many matches they have had 
@@ -173,17 +175,44 @@ def save_image_scores(new_scores, path_name, original_path):
         shutil.copyfile(original_path, scores_file)
     with open(scores_file, 'w') as f:
         f.write(json.dumps(new_scores, indent=4))
+                
+
+# TODO this might work
+def save_match_history(match_history, upcoming_matches, path_name, original_history_path):
+    sessions = list(match_history.keys())
+    new_session = int(max(sessions)) + 1
+
+    for match in upcoming_matches:
+        winner = match[0]
+        loser = match[1]
         
+        match_history[new_session][datetime.now().isoformat()] = {
+            "left_image": winner,
+            "right_image": loser,
+            "winner": 0
+            }
+    
+    history_file = Path(f'scores/full/elo/{path_name}_logic_history.json')
+    if not history_file.exists():
+        # Create the directory if it doesn't exist
+        history_file.parent.mkdir(parents=True, exist_ok=True)
+        # Copy the original file to the new location
+        shutil.copyfile(original_history_path, history_file)
+    with open(history_file, 'w') as f:
+        f.write(json.dumps(match_history, indent=4))
+
 
 def main():
     for path_name in ["kristoffer"]: # ["kasper", "kristoffer", "Kristian", "darkness", "darkness_2500"]:
         # Load data
         original_path = f'scores/full/elo/{path_name}.json'
         image_names_with_elo = load_match_data(original_path)
-        match_data = load_match_data(f'scores/full/elo/{path_name}_history.json')
+        
+        original_history_path = f'scores/full/elo/{path_name}_history.json'
+        match_history = load_match_data(f'scores/full/elo/{path_name}_history.json')
         
         # find pure wisn
-        init_wins_and_loses = initialize_dictionarioary(match_data, image_names_with_elo)
+        init_wins_and_loses = initialize_dictionarioary(match_history, image_names_with_elo)
         pure_wins = find_transitative_wins_and_loses(init_wins_and_loses)
         plot_unique_wins(pure_wins, path_name)
         
@@ -193,6 +222,7 @@ def main():
         
         # save the new scores
         save_image_scores(new_scores, path_name, original_path)
+        save_match_history(match_history, upcoming_matches, path_name, original_history_path)
         
 
 if __name__ == "__main__":
