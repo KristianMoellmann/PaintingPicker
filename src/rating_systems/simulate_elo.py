@@ -180,7 +180,8 @@ def save_image_scores(new_scores, path_name, original_path):
 # TODO this might work
 def save_match_history(match_history, upcoming_matches, path_name, original_history_path):
     sessions = list(match_history.keys())
-    new_session = int(max(sessions)) + 1
+    new_session = int(max(sessions)) +  1
+    match_history[new_session] = {}
 
     for match in upcoming_matches:
         winner = match[0]
@@ -203,7 +204,7 @@ def save_match_history(match_history, upcoming_matches, path_name, original_hist
 
 
 def main():
-    for path_name in ["kristoffer"]: # ["kasper", "kristoffer", "Kristian", "darkness", "darkness_2500"]:
+    for path_name in ["kasper", "kristoffer", "kristoffer_r", "Kristian", "darkness", "darkness_r", "darkness_2500", "darkness_r_2500"]:
         # Load data
         original_path = f'scores/full/elo/{path_name}.json'
         image_names_with_elo = load_match_data(original_path)
@@ -214,7 +215,7 @@ def main():
         # find pure wisn
         init_wins_and_loses = initialize_dictionarioary(match_history, image_names_with_elo)
         pure_wins = find_transitative_wins_and_loses(init_wins_and_loses)
-        plot_unique_wins(pure_wins, path_name)
+        # plot_unique_wins(pure_wins, path_name)
         
         # simulate the elo rating system
         upcoming_matches = create_upcoming_match_list(pure_wins)
