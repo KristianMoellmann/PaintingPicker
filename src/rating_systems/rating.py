@@ -365,3 +365,5 @@ if __name__ == '__main__':
 
     app = Rating(args.name, args.folder, args.strategy, args.simulator, args.total_matches)
     app.run()
+    
+    # TODO run Python src/rating_systems/rating.py NAME --folder data/processed/unseen

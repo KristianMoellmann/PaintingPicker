@@ -160,9 +160,16 @@ if __name__=='__main__':
     loss_func = None
     optimizer = None
 
-    data = EmbeddedMatchDataSplit(args.folder, labels, split=(0.7, 0.15, 0.15), seed=args.seed)
+    data = EmbeddedMatchDataSplit(args.folder, labels, seed=args.seed)
 
-    (train_data, train_targets), (val_data, val_targets), (test_data, test_targets) = data.split_data()
+    test_data, test_targets = data.hold_out_test(ratio=0.1)
+
+    (train_data, train_targets), (val_data, val_targets) = data.split_data(ratio=0.8, seed=args.seed+1)
+
+    # Print the sizes of the datasets
+    print(f"Train size: {len(train_data)}")
+    print(f"Val size: {len(val_data)}")
+    print(f"Test size: {len(test_data)}")
 
     train_dataset = EmbeddedMatchDataset(train_data, train_targets, create_duplicates=args.duplicates)
     val_dataset = EmbeddedMatchDataset(val_data, val_targets, create_duplicates=args.duplicates)
