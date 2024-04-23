@@ -7,23 +7,76 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_elo_scores(scores: dict):
-    
-    all_elos = [val["elo"] for _, val in scores.items()]
-    print(f"Min ELO: {min(all_elos):.2f}\nMax ELO: {max(all_elos):.2f}\nAverage ELO: {sum(all_elos) / len(all_elos):.2f}\nUnique ELOs: {len(set(all_elos))}")
-    
-    # all_elos_with_noise = [elo + (15 * (np.random.rand()*2 - 1)) for elo in all_elos]
-    
-    # Plot histogram of elos
-    bins = int(len(set(all_elos)) / 2)
+def plot_elo_scores(score_dict: dict):
+
     # figsize
-    plt.figure(figsize=(5, 3.5))
+    fig, ax = plt.subplots(1, 1, figsize=(5, 3.5))
     plt.grid(True, linestyle='--', alpha=0.5, zorder=0)  # Add grid lines behind histogram
-    plt.hist(all_elos, bins=bins, zorder=3, label='Original')
-    # plt.hist(all_elos_with_noise, bins=bins, zorder=4, alpha=0.4, color='red', label='Simulation')
-    plt.xlabel("ELO")
-    plt.ylabel("Frequency")
-    plt.legend()
+    COLORS = {
+        "Original": "black",
+        "Logic": "red",
+        "Clip": "blue"
+    }
+
+    lns = []
+
+    for name, scores in score_dict.items():
+    
+        all_elos = [val["elo"] for _, val in scores.items()]
+        print(f"Min ELO: {min(all_elos):.2f}\nMax ELO: {max(all_elos):.2f}\nAverage ELO: {sum(all_elos) / len(all_elos):.2f}\nUnique ELOs: {len(set(all_elos))}")
+        
+        # all_elos_with_noise = [elo + (15 * (np.random.rand()*2 - 1)) for elo in all_elos]
+        
+        # Plot histogram of elos
+        bins = int(len(set(all_elos)) / 10)
+        if name == "Original":
+            ln = ax.hist(all_elos, bins=20, zorder=5, label=name, color=COLORS[name], alpha=1)
+        else:
+            ln = ax.hist(all_elos, bins=50, zorder=3, label=name, color=COLORS[name], alpha=0.5)
+        
+        lns.append(ln[2][0])
+    
+    ax.legend(lns, [l.get_label() for l in lns], loc='upper right')
+
+    
+    ax.set_xlabel("ELO")
+    ax.set_ylabel("Frequency")
+    # plt.title(f"ELO distribution\nMin: {min(all_elos):.2f}, Max: {max(all_elos):.2f}, Average: {sum(all_elos) / len(all_elos):.2f}, Unique: {len(set(all_elos))}")
+    plt.tight_layout()
+    plt.savefig(f"reports/figures/elo/elo_distribution_{args.name}.pdf")
+    plt.show()
+
+
+def plot_elo_scores_scatter(score_dict: dict):
+
+    # figsize
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+    plt.grid(True, linestyle='--', alpha=0.5, zorder=0)  # Add grid lines behind histogram
+    COLORS = {
+        "Original": "black",
+        "Logic": "red",
+        "Clip": "blue"
+    }
+
+    sorting = np.argsort(np.array([val["elo"] for _, val in score_dict["Original"].items()]))
+
+    for name, scores in score_dict.items():
+    
+        all_elos = np.array([val["elo"] for _, val in scores.items()])[sorting]
+        all_elos = (all_elos - all_elos.min()) / (all_elos.max() - all_elos.min())
+
+        print(f"Min ELO: {min(all_elos):.2f}\nMax ELO: {max(all_elos):.2f}\nAverage ELO: {sum(all_elos) / len(all_elos):.2f}\nUnique ELOs: {len(set(all_elos))}")
+        
+        # all_elos_with_noise = [elo + (15 * (np.random.rand()*2 - 1)) for elo in all_elos]
+        
+        # Plot histogram of elos
+        # ax.plot(range(len(all_elos)), all_elos, zorder=3, label=name, color=COLORS[name], alpha=0.5)
+        ax.scatter(range(len(all_elos)), all_elos, zorder=3, label=name, color=COLORS[name], s=4)
+
+    
+    ax.legend()    
+    ax.set_xlabel("Normalised ELO")
+    ax.set_ylabel("Frequency")
     # plt.title(f"ELO distribution\nMin: {min(all_elos):.2f}, Max: {max(all_elos):.2f}, Average: {sum(all_elos) / len(all_elos):.2f}, Unique: {len(set(all_elos))}")
     plt.tight_layout()
     plt.savefig(f"reports/figures/elo/elo_distribution_{args.name}.pdf")
@@ -74,11 +127,15 @@ def plot_elo_history(history: dict):
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('name', type=str, help="Name of the user")
-    parser.add_argument('--folder', default='data/processed/full', type=str, help="Folder containing images")
+    parser.add_argument('--with_logic', action='store_true', help="Plot logic data")
+    parser.add_argument('--with_clip', action='store_true', help="Plot clip data")
+    parser.add_argument('--dataset', default='/full', type=str, help="Folder containing images")
     parser.add_argument('--plot', default='both', choices=['both', 'scores', 'history'], type=str, help="Plot to show (scores or history)")
     args = parser.parse_args()
 
-    scores_file = Path(f'scores/{os.path.basename(args.folder)}/elo/{args.name}.json')
+    score_dict = {}
+
+    scores_file = Path(f'scores/{args.dataset}/elo/{args.name}.json')
     # history_file = Path(f'scores/{os.path.basename(args.folder)}/elo/{args.name}_history.json')
 
     if not scores_file.exists():
@@ -92,12 +149,24 @@ if __name__ == '__main__':
     
     with open(scores_file, 'r') as f:
         scores = json.load(f)
+    score_dict["Original"] = scores
+
+    if args.with_logic:
+        with open(str(scores_file).replace('.json', '_logic.json'), 'r') as f:
+            scores = json.load(f)
+        score_dict["Logic"] = scores
+
+    if args.with_clip:
+        with open(str(scores_file).replace('.json', '_clip.json'), 'r') as f:
+            scores = json.load(f)
+        score_dict["Clip"] = scores
 
     if args.plot == 'scores' or args.plot == 'both':
-        plot_elo_scores(scores)
+        plot_elo_scores(score_dict)
+        plot_elo_scores_scatter(score_dict)
     
-    with open(history_file, 'r') as f:
-        history = json.load(f)
+    # with open(history_file, 'r') as f:
+    #     history = json.load(f)
 
-    if args.plot == 'history' or args.plot == 'both':
-        plot_elo_history(history)
+    # if args.plot == 'history' or args.plot == 'both':
+    #     plot_elo_history(history)
