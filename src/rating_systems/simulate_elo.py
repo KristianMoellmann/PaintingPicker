@@ -210,6 +210,8 @@ def main():
         original_path = f'scores/full/elo/{path_name}.json'
         image_names_with_elo = load_match_data(original_path)
         
+        # TODO implement test set
+        
         original_history_path = f'scores/full/elo/{path_name}_history.json'
         match_history = load_match_data(f'scores/full/elo/{path_name}_history.json')
         
