@@ -4,6 +4,8 @@ from torch.utils.data import Dataset
 from torchvision.transforms import ToTensor, Compose
 import einops
 from PIL import Image
+from typing import Tuple
+
 
 class ScaleDataset(Dataset):
 
@@ -106,7 +108,7 @@ class EmbeddedEloDataset(Dataset):
 
 class EmbeddedMatchDataSplit:
 
-    def __init__(self, image_folder: str, labels: dict, split: tuple[float], seed: int = None):
+    def __init__(self, image_folder: str, labels: dict, split: Tuple[float], seed: int = None):
         self.data, self.target = self.load_images(image_folder, labels)
         self.split = split
         self.seed = seed
