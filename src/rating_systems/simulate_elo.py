@@ -55,10 +55,12 @@ def find_transitative_wins_and_loses(transitative_wins_and_loses):
         # Go trough search list for wins untill it is empty
         image_wins_set = set()
         win_search_list = list(transitative_wins_and_loses[image]["W"])
+        exsisting_wins = set(win_search_list)
         while win_search_list:
             beaten_image = win_search_list.pop()
             if beaten_image not in image_wins_set:
-                image_wins_set.add(beaten_image)
+                if beaten_image not in exsisting_wins:
+                    image_wins_set.add(beaten_image)
 
                 for beaten_image_win in transitative_wins_and_loses[beaten_image]["W"]:
                     win_search_list.append(beaten_image_win)
@@ -122,8 +124,8 @@ def calculate_elo(ra, rb, sa, sb, K=32):
     Parameters:
     ra (float): The current rating of player A.
     rb (float): The current rating of player B.
-    sa (float): The score of player A (1 for win, 0.5 for draw, 0 for loss).
     sb (float): The score of player B (1 for win, 0.5 for draw, 0 for loss).
+    sa (float): The score of player A (1 for win, 0.5 for draw, 0 for loss).
     K (int, optional): The K-factor, which determines how much the ratings change. Default is 32.
 
     Returns:
@@ -142,7 +144,6 @@ def calculate_elo(ra, rb, sa, sb, K=32):
     
 
 def simulate_matches(upcoming_matches, scores):
-
     
     # Idea! After every 100 match the order of the matches should be sorted 
     # according to how many matches they have had 
@@ -212,7 +213,7 @@ def main():
         original_history_path = f'scores/full/elo/{path_name}_history.json'
         match_history = load_match_data(f'scores/full/elo/{path_name}_history.json')
         
-        # find pure wisn
+        # find pure wins
         init_wins_and_loses = initialize_dictionarioary(match_history, image_names_with_elo)
         pure_wins = find_transitative_wins_and_loses(init_wins_and_loses)
         # plot_unique_wins(pure_wins, path_name)
