@@ -182,12 +182,12 @@ if __name__ == "__main__":
                 break
     
     # Save the updated ratings
-    new_elo_path = Path(f"scores/{args.dataset}/elo/{args.name}_updated_{args.num_matches}.json")
+    new_elo_path = Path(f"scores/{args.dataset}/elo/{args.name}_clip.json")
     with open(new_elo_path, "w") as f:
         json.dump(ratings, f, indent=4)
 
     # Save the updated history
-    new_history_path = Path(f"scores/{args.dataset}/elo/{args.name}_updated_{args.num_matches}_history.json")
+    new_history_path = Path(f"scores/{args.dataset}/elo/{args.name}_clip_history.json")
     with open(new_history_path, "w") as f:
         json.dump(history, f, indent=4)
     
