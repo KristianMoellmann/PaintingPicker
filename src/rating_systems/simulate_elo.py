@@ -39,6 +39,7 @@ def initialize_dictionarioary(match_data, image_names):
             else:
                 draw_1 = match_data[session][match]["left_image"]
                 draw_2 = match_data[session][match]["right_image"]
+                continue
                 # TODO implement draw
             
             init_wins_and_loses[winner]["W"].add(loser)

@@ -108,8 +108,49 @@ class EmbeddedEloDataset(Dataset):
         return sample, target
 
 
-class EmbeddedMatchDataSplit:
+class MatchDataHistorySplit:
 
+    def __ini__(self, history: dict, seed: int = None):
+        self.history = history
+        self.remaining_images = self.get_images_from_history()
+
+    def get_images_from_history(self):
+        images = set()
+        for session, history in self.history.items():
+            for time, scoring in history.items():
+                images.add(scoring["left_image"])
+                images.add(scoring["right_image"])
+        return np.array(list(images))
+
+    def create_new_history(self, images: np.array):
+        new_history = {}
+        for session, history in self.history.items():
+            new_history[session] = {}
+            for time, scoring in history.items():
+                if scoring["left_image"] in images or scoring["right_image"] in images:
+                    new_history[session][time] = scoring
+                    self.history[session].pop(time)
+                
+        return new_history
+    
+    def hold_out_test(self, ratio: float = 0.2):
+        if self.seed is not None:
+            torch.manual_seed(self.seed)
+        
+        n = len(self.remaining_images)
+        indices = torch.randperm(n)
+        test_index = int(n * ratio)
+
+        test_images = self.remaining_images[indices[:test_index]]
+        self.remaining_images = self.remaining_images[indices[test_index:]]
+
+        test_history = self.create_new_history(test_images)
+        
+        return self.history, test_history
+
+
+
+class EmbeddedMatchDataSplit:
 
     def __init__(self, image_folder: str, labels: dict, seed: int = None):
         self.data, self.target, self.image_matches = self.load_images(image_folder, labels)
@@ -213,7 +254,7 @@ class EmbeddedMatchDataSplit:
 
 class EmbeddedMatchDataset(Dataset):
 
-    def __init__(self, data: torch.Tensor, target: torch.Tensor, create_duplicates: bool=True):
+    def __init__(self, data: torch.Tensor, target: torch.Tensor, create_duplicates: bool=False):
         self.data, self.target = data, target
         self.create_duplicates = create_duplicates
         if self.create_duplicates:

@@ -4,7 +4,7 @@ import clip
 import os
 import json
 import matplotlib.pyplot as plt
-from custom_data import EmbeddedMatchDataset, EmbeddedMatchDataSplit
+from custom_data import EmbeddedMatchDataset, EmbeddedMatchDataSplit, MatchDataHistorySplit
 from torch.utils.data import DataLoader, random_split
 from argparse import ArgumentParser
 from pathlib import Path
@@ -134,7 +134,7 @@ if __name__=='__main__':
     parser.add_argument('--batch-size', default=32, type=int, help="Batch size to use")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate to use")
     parser.add_argument('--seed', default=42, type=int, help="Seed to use for reproducibility")
-    parser.add_argument('--duplicates', action='store_true', help="Whether to create duplicates of the data")
+    parser.add_argument('--logic', action='store_true', help='Use the logic model to simulate training data')
     args = parser.parse_args()
 
     scoring = "elo"
@@ -160,7 +160,13 @@ if __name__=='__main__':
     loss_func = None
     optimizer = None
 
-    data = EmbeddedMatchDataSplit(args.folder, labels, seed=args.seed)
+    history_data = MatchDataHistorySplit(labels, seed=args.seed)
+    history_train_val, history_test = history_data.hold_out_test(ratio=0.1)
+
+    test_data = EmbeddedMatchDataSplit(args.folder, history_test)
+
+    if not args.logic:
+        data = EmbeddedMatchDataSplit(args.folder, labels, seed=args.seed)
 
     test_data, test_targets = data.hold_out_test(ratio=0.1)
 
@@ -171,9 +177,9 @@ if __name__=='__main__':
     print(f"Val size: {len(val_data)}")
     print(f"Test size: {len(test_data)}")
 
-    train_dataset = EmbeddedMatchDataset(train_data, train_targets, create_duplicates=args.duplicates)
-    val_dataset = EmbeddedMatchDataset(val_data, val_targets, create_duplicates=args.duplicates)
-    test_dataset = EmbeddedMatchDataset(test_data, test_targets, create_duplicates=args.duplicates)
+    train_dataset = EmbeddedMatchDataset(train_data, train_targets)
+    val_dataset = EmbeddedMatchDataset(val_data, val_targets)
+    test_dataset = EmbeddedMatchDataset(test_data, test_targets)
     
     # Create data loader
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
