@@ -11,6 +11,8 @@ from pathlib import Path
 from tqdm import tqdm
 from sklearn.model_selection import KFold
 # from src.models.model import ScaleNet
+from scipy import stats
+import yaml
 
 
 class ScaleNetWithClip(nn.Module):
@@ -32,7 +34,6 @@ class ScaleNetWithClip(nn.Module):
         x = self.sigmoid(x)
         return x.flatten()
 
-
 class ScaleNet(nn.Module):
     name: str = 'ScaleNet'
 
@@ -49,7 +50,6 @@ class ScaleNet(nn.Module):
         x = self.l2(x)
         x = self.sigmoid(x)
         return x.flatten()
-
 
 class ScaleNetV2(nn.Module):
     name: str = 'ScaleNetV2'
@@ -73,7 +73,49 @@ class ScaleNetV2(nn.Module):
         x = self.l3(x)
         x = self.sigmoid(x)
         return x.flatten()
+    
+class ScaleNetV3(nn.Module):
+    name: str = 'ScaleNetV3'
 
+    def __init__(self, input_size: int=512) -> None:
+        super(ScaleNetV3, self).__init__()
+        self.seq = nn.Sequential(
+            nn.Linear(input_size, 32),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(32, 8),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(8, 1),
+            nn.Sigmoid()
+        )
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.seq(x)
+        return out.flatten()
+
+class ScaleNetV4(nn.Module):
+    name: str = 'ScaleNetV4'
+
+    def __init__(self, input_size: int=512) -> None:
+        super(ScaleNetV4, self).__init__()
+        self.seq = nn.Sequential(
+            nn.Linear(input_size, 256),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(128, 32),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(32, 1),
+            nn.Sigmoid()
+        )
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.seq(x)
+        return out.flatten()
 
 def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, optimizer, loss_func: callable, epochs: int, device: str, scoring: str):
 
@@ -83,8 +125,9 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
 
     best_val_loss = float('inf')
 
-    for epoch in (pbar := tqdm(range(epochs), leave=True)):
-        pbar.set_description(f"Epoch {epoch+1}/{epochs}")
+    # pbar = tqdm(range(epochs), leave=True)
+    for epoch in range(epochs):
+        # pbar.set_description(f"Epoch {epoch+1}/{epochs}")
         train_loss = 0
         for image, target in train_loader:
             image = image.to(device)
@@ -112,16 +155,15 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
         
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), f'models/{scoring}/{os.path.basename(args.folder)}/{args.name}.pt')
+            torch.save(model.state_dict(), f'models/{os.path.basename(args.folder)}/{scoring}/{args.name}.pt')
 
         train_losses.append(train_loss)
         val_losses.append(val_loss)
-        pbar.set_postfix({'Train loss': train_loss, 'Val loss': val_loss})      
+        # pbar.set_postfix({'Train loss': train_loss, 'Val loss': val_loss})      
 
-    print(f"Best validation loss: {best_val_loss:.3f}")
+    # print(f"Best validation loss: {best_val_loss:.3f}")
 
     return train_losses, val_losses
-
 
 def plot_predictions_scale9(model: nn.Module, test_loader: DataLoader, loss_func: callable, device: str):
     # Plot predictions on test set
@@ -142,6 +184,7 @@ def plot_predictions_scale9(model: nn.Module, test_loader: DataLoader, loss_func
     
     test_predictions = torch.round(torch.cat(test_predictions).cpu() * 8 + 1)
     test_targets = torch.cat(test_targets).cpu() * 8 + 1
+    tau = stats.kendalltau(test_targets, test_predictions).statistic
 
     if not args.dont_plot:
         # Plot histofram of test predicitons
@@ -159,9 +202,26 @@ def plot_predictions_scale9(model: nn.Module, test_loader: DataLoader, loss_func
         fig.suptitle(f"Predictions on test set, test loss: {test_loss:.2f}")
         plt.tight_layout()
         plt.show()
-    return test_loss
 
-def plot_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: callable, device: str):
+        # Calculate Kendall's tau
+
+        # Scatter plot of test predicitons and targets
+        fig, ax = plt.subplots(figsize=(7, 6))
+        ax.scatter(test_targets, test_predictions, alpha=0.5)
+        ax.plot([0, 10], [0, 10], color='red', linestyle='dashed', linewidth=2)
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 10)
+        ax.set_xlabel('True rating')
+        ax.set_ylabel('Predicted rating')
+        ax.set_title(f"Predictions on test set, test loss: {test_loss:.2f}, Kendall's tau corr.: {tau:.3f}")
+        plt.tight_layout()
+        # plt.savefig(f"reports/figures/training/{args.name}_{args.scoring}_{args.score_type}_{model.name}_scatter.pdf")
+        plt.show()
+    # print(f"Test loss: {test_loss:.3f}")
+
+    return test_loss, tau
+
+def  plot_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: callable, device: str):
     # Plot predictions on test set
     test_predictions = []
     test_targets = []
@@ -178,25 +238,41 @@ def plot_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: c
             loss = loss_func(pred, target)
             test_loss += loss.item()/len(test_loader)
     
-    print(f"Test loss: {test_loss:.3f}")
+    # print(f"Test loss: {test_loss:.3f}")
     test_predictions = torch.round(torch.cat(test_predictions).cpu() * (r_max - r_min) + r_min)
     test_targets = torch.cat(test_targets).cpu() * (r_max - r_min) + r_min
+    tau = stats.kendalltau(test_targets, test_predictions).statistic
 
     if not args.dont_plot:
-        # Plot histofram of test predicitons and targets
-        fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-        for ax, data, title in zip(axes, [test_predictions, test_targets], ['Predictions', 'Targets']):
-            ax.hist(data, bins=100, alpha=0.5, label=title, color='blue')
-            ax.axvline(data.mean(), color='red', linestyle='dashed', linewidth=2)
-            ax.set_xlim(r_min-5, r_max+5)
-            # ax.set_ylim(0, 30)
-            # ax.xaxis.set_ticks(range(int(r_min), int(r_max)+1))
-            ax.set_title(title)
-        fig.suptitle(f"Predictions on test set, test loss: {test_loss:.2f}")
+        # Calculate Kendall's tau
+
+        # Scatter plot of test predicitons and targets
+        fig, ax = plt.subplots(figsize=(7, 6))
+        ax.scatter(test_targets, test_predictions, alpha=0.5)
+        ax.plot([r_min-10, r_max+10], [r_min-10, r_max+10], color='red', linestyle='dashed', linewidth=2)
+        ax.set_xlim(r_min-10, r_max+10)
+        ax.set_ylim(r_min-10, r_max+10)
+        ax.set_xlabel('True rating')
+        ax.set_ylabel('Predicted rating')
+        ax.set_title(f"Predictions on test set, test loss: {test_loss:.2f}, Kendall's tau corr.: {tau:.3f}")
         plt.tight_layout()
-        plt.savefig(f"reports/figures/training/{args.name}_{args.scoring}_{args.score_type}_{model.name}_predictions.pdf")
+        plt.savefig(f"reports/figures/training/{args.name}_{args.scoring}_{args.score_type}_{model.name}_scatter.pdf")
         plt.show()
-    return test_loss
+
+        # # Plot histogram of test predicitons and targets
+        # fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+        # for ax, data, title in zip(axes, [test_predictions, test_targets], ['Predictions', 'Targets']):
+        #     ax.hist(data, bins=100, alpha=0.5, label=title, color='blue')
+        #     ax.axvline(data.mean(), color='red', linestyle='dashed', linewidth=2)
+        #     ax.set_xlim(r_min-5, r_max+5)
+        #     # ax.set_ylim(0, 30)
+        #     # ax.xaxis.set_ticks(range(int(r_min), int(r_max)+1))
+        #     ax.set_title(title)
+        # fig.suptitle(f"Predictions on test set, test loss: {test_loss:.2f}")
+        # plt.tight_layout()
+        # plt.savefig(f"reports/figures/training/{args.name}_{args.scoring}_{args.score_type}_{model.name}_predictions.pdf")
+        # plt.show()
+    return test_loss, tau
 
 
 if __name__=='__main__':
@@ -212,11 +288,15 @@ if __name__=='__main__':
     parser.add_argument('--seed', default=42, type=int, help="Seed to use for reproducibility")
     parser.add_argument('--score_type', default='original', choices=['original', 'logic', 'clip'], help="Decide which score type to use")
     parser.add_argument('--dont_plot', action='store_true', help="Plot the predictions on the test set")
+    parser.add_argument('--regressor', default='ScaleNetV2', choices=['ScaleNet', 'ScaleNetV2', 'ScaleNetV3', 'ScaleNetV4'], help="Regressor to use")
+    parser.add_argument('--save_results', action='store_true', help="Save the results to a yaml file")
     args = parser.parse_args()
+    print(args)
 
     # Load the feautre extractor and the preprocess function
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
+    if args.name == 'kristoffer' and args.scoring == 'elo':
+        args.folder = args.folder.replace('full', 'full_kris')
 
     # Load the data
     if args.score_type == 'original':
@@ -228,6 +308,9 @@ if __name__=='__main__':
     else:
         raise ValueError("score_type must be one of 'original', 'logic', 'clip'")
 
+    if args.name == 'kristoffer' and args.scoring == 'scale_9':
+        args.folder = args.folder.replace('full', 'full_kris')
+
     if not scoring_path.exists():
         raise FileNotFoundError(f"Scoring file {scoring_path} does not exist")
     
@@ -235,16 +318,23 @@ if __name__=='__main__':
         labels = json.load(f)
 
     labels_train_val, labels_test = random_split(labels, [int(0.90*len(labels)), int(0.10*len(labels))])
-    
+
+    labels_test_key = [[*labels_test.dataset.keys()][i] for i in labels_test.indices]
+    labels_test = {k: labels_test.dataset[k] for k in labels_test_key}
+
     kf = KFold(n_splits=9, shuffle=True, random_state=args.seed)
     test_losses = []
+    test_kendalls_tau_corr = []
     
-    # kf_iterator = tqdm(kf.split(labels_train_val), total=kf.get_n_splits(), leave=False)
-    for i, (train_index, val_index) in enumerate(kf.split(labels_train_val)):
-        print(f"Fold {i+1}/9")
+    kf_iterator = tqdm(kf.split(labels_train_val), total=kf.get_n_splits(), leave=False)
+    # enumerate(kf.split(labels_train_val.indices))
+    for train_index, val_index in kf_iterator:
+        # print(f"\nFold {i+1}/9")
+        train_index = [labels_train_val.indices[idx] for idx in train_index]
         labels_train_key = [[*labels_train_val.dataset.keys()][i] for i in train_index]
         labels_train = {k: labels_train_val.dataset[k] for k in labels_train_key}
         
+        val_index = [labels_train_val.indices[idx] for idx in val_index]
         labels_val_key = [[*labels_train_val.dataset.keys()][i] for i in val_index]
         labels_val = {k: labels_train_val.dataset[k] for k in labels_val_key}
 
@@ -260,7 +350,14 @@ if __name__=='__main__':
             model = ScaleNetWithClip(feature_extractor).to(device)
         else:
             args.folder = args.folder.replace('processed', 'embedded')
-            model = ScaleNetV2().to(device)
+            if args.regressor == 'ScaleNet':
+                model = ScaleNet().to(device)
+            elif args.regressor == 'ScaleNetV2':
+                model = ScaleNetV2().to(device)
+            elif args.regressor == 'ScaleNetV3':
+                model = ScaleNetV3().to(device)
+            elif args.regressor == 'ScaleNetV4':
+                model = ScaleNetV4().to(device)
         
         # Initialise things which must be defined according to the scoring method
         data = None
@@ -273,27 +370,21 @@ if __name__=='__main__':
             else:
                 train_data = EmbeddedEloDataset(args.folder, labels_train)
                 val_data = EmbeddedEloDataset(args.folder, labels_val)
-                test_data = EmbeddedEloDataset(args.folder, labels_test.dataset)
+                test_data = EmbeddedEloDataset(args.folder, labels_test)
                 r_min, r_max = train_data.r_min, train_data.r_max
         else:
             if args.embed_now:
                 preprocess = clip_model.transform
                 train_data = ScaleDataset(args.folder, labels_train, preprocess)
                 val_data = ScaleDataset(args.folder, labels_val, preprocess)
-                test_data = ScaleDataset(args.folder, labels_test.dataset, preprocess)
+                test_data = ScaleDataset(args.folder, labels_test, preprocess)
             else:
                 train_data = EmbeddedScaleDataset(args.folder, labels_train)
                 val_data = EmbeddedScaleDataset(args.folder, labels_val)
-                test_data = EmbeddedScaleDataset(args.folder, labels_test.dataset)
+                test_data = EmbeddedScaleDataset(args.folder, labels_test)
                 
         loss_func = nn.MSELoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-        
-        # Split the data
-        # train_ratio, val_ratio, test_ratio = 0.7, 0.15, 0.15
-        # n = len(data)
-
-        # train_data, val_data, test_data = random_split(data, [int(train_ratio*n), int(val_ratio*n), int(test_ratio*n)])
         
         # Create data loader
         train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
@@ -301,7 +392,7 @@ if __name__=='__main__':
         test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False)
 
         # Train the model
-        model_save_path = f'models/{args.scoring}/{os.path.basename(args.folder)}'
+        model_save_path = f'models/{os.path.basename(args.folder)}/{args.scoring}'
         os.makedirs(model_save_path, exist_ok=True)
 
         train_losses, val_losses = train(model, train_loader, val_loader, optimizer, loss_func, args.epochs, device, args.scoring)
@@ -318,14 +409,47 @@ if __name__=='__main__':
             plt.show()
 
         # Load the best model
-        model.load_state_dict(torch.load(f'models/{args.scoring}/{os.path.basename(args.folder)}/{args.name}.pt'))
+        model.load_state_dict(torch.load(f'models/{os.path.basename(args.folder)}/{args.scoring}/{args.name}.pt'))
 
         if args.scoring == 'scale_9':
-            test_loss = plot_predictions_scale9(model, test_loader, loss_func, device)
+            test_loss, tau = plot_predictions_scale9(model, test_loader, loss_func, device)
         else:
-            test_loss = plot_predictions_elo(model, test_loader, loss_func, device)
+            test_loss, tau = plot_predictions_elo(model, test_loader, loss_func, device)
         
         test_losses.append(test_loss)
-        
-    print(f"Average test loss: {sum(test_losses)/len(test_losses):.3f}")
+        test_kendalls_tau_corr.append(tau)
+        kf_iterator.set_postfix({'Test loss': test_loss, 'Kendall\'s tau corr': tau})
     
+    avg_test_loss = sum(test_losses)/len(test_losses)
+    avg_kendalls_tau_corr = sum(test_kendalls_tau_corr)/len(test_kendalls_tau_corr)
+    if not args.save_results:
+        print(f"\n{args.name} results:")
+        print(f"    - Average test loss: {avg_test_loss:.3f}")
+        print(f"    - Average Kendall's tau correlation: {avg_kendalls_tau_corr:.3f}")
+    
+
+    if args.save_results:
+        # Save results to yaml file
+        path = f'results/full/'
+        path_to_file = os.path.join(path, f"{args.scoring}.yaml")
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        # Check if the file exists
+        if not os.path.isfile(path_to_file):
+            results = {args.score_type: {args.regressor: {args.name: {}}}}
+        else: # read the file and add new key if needed
+            with open(path_to_file, 'r') as f:
+                results = yaml.load(f, Loader=yaml.FullLoader)
+            results.setdefault(args.score_type, {}).setdefault(args.regressor, {}).setdefault(args.name, {})
+
+        results[args.score_type][args.regressor][args.name] = {
+            'test_losses': [float(test_loss) for test_loss in test_losses], 
+            'test_kendalls_tau_corr': [float(corr) for corr in test_kendalls_tau_corr], 
+            'avg_test_loss': float(avg_test_loss), 
+            'avg_kendalls_tau_corr': float(avg_kendalls_tau_corr)
+        }
+
+        with open(path_to_file, 'w') as f:
+            yaml.dump(results, f, default_flow_style=True)
