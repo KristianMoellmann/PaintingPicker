@@ -76,12 +76,17 @@ class EmbeddedScaleDataset(Dataset):
 class EmbeddedEloDataset(Dataset):
 
     def __init__(self, image_folder: str, labels: dict):
-        self.data, self.target = self.load_images(image_folder, labels)
+        self.data, self.target, self.names = self.load_images(image_folder, labels)
 
     def load_images(self, image_folder: str, labels: dict):
         data = []
         target = []
+        names = []
         for image_name, scoring in labels.items():
+            if image_name == '2023-04-05 16.09.44.jpg':
+                names.append("1010101010.jpg")
+            else:
+                names.append(image_name)
             image_name = image_name.replace('.jpg', '.pt')
             image_file = os.path.join(image_folder, image_name)
             data.append(torch.load(image_file))
@@ -90,13 +95,16 @@ class EmbeddedEloDataset(Dataset):
 
         data = torch.stack(data)
         target = torch.tensor(target, dtype=torch.float32)
+        names = [int(name.split('.')[0]) for name in names]
+        names = torch.tensor(names, dtype=torch.int)
 
         # Normalize the target between 0 and 1
         self.r_min = target.min().item()
         self.r_max = target.max().item()
-        target = (target - self.r_min) / (self.r_max - self.r_min)
+        if self.r_max - self.r_min != 0:
+            target = (target - self.r_min) / (self.r_max - self.r_min)
 
-        return data, target
+        return data, target, names
 
     def __len__(self):
         return len(self.data)
@@ -104,8 +112,8 @@ class EmbeddedEloDataset(Dataset):
     def __getitem__(self, idx):
         sample = self.data[idx]
         target = self.target[idx]
-            
-        return sample, target
+        name = self.names[idx]    
+        return sample, target, name
 
 
 class MatchDataHistorySplit:

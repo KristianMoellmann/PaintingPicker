@@ -86,7 +86,7 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
     for epoch in (pbar := tqdm(range(epochs), leave=True)):
         pbar.set_description(f"Epoch {epoch+1}/{epochs}")
         train_loss = 0
-        for image, target in train_loader:
+        for image, target, name in train_loader:
             image = image.to(device)
             target = target.to(device)
 
@@ -101,7 +101,7 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
 
         with torch.no_grad():
             val_loss = 0
-            for image, target in val_loader:
+            for image, target, name in val_loader:
                 image = image.to(device)
                 target = target.to(device)
 
@@ -168,7 +168,7 @@ def plot_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: c
     test_loss = 0
     model.eval()
     with torch.no_grad():
-        for image, target in test_loader:
+        for image, target, name in test_loader:
             image = image.to(device)
             target = target.to(device)
 
