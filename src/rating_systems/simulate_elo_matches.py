@@ -123,9 +123,9 @@ def update_elo_history(history, image1, image2, prediction, session_index):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("name", type=str)
-    parser.add_argument("--model", type=str)
     parser.add_argument("--dataset", type=str, default="full")
     parser.add_argument("--num-matches", type=int, default=10_000)
+    parser.add_argument("--cv", default=None, type=int)
     args = parser.parse_args()
 
     # Load current ratings
@@ -138,12 +138,12 @@ if __name__ == "__main__":
     with open(history_path, "r") as f:
         history = json.load(f)
     session_index = len(history)
-    history[session_index] = {}
-    
+    history[session_index] = {}        
+
     # Load the model
     model = MatchNet()
-    if args.model is not None:
-        model.load_state_dict(torch.load(args.model))
+    if args.cv is not None:
+        model.load_state_dict(torch.load(f"models/elo/{args.dataset}/{args.name}_cv{args.cv}.pt"))
     else:
         model.load_state_dict(torch.load(f"models/elo/{args.dataset}/{args.name}.pt"))
     model.eval()
