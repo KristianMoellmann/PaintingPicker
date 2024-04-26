@@ -110,7 +110,7 @@ class EmbeddedEloDataset(Dataset):
 
 class MatchDataHistorySplit:
 
-    def __ini__(self, history: dict, seed: int = None):
+    def __init__(self, history: dict):
         self.history = history
         self.remaining_images = self.get_images_from_history()
 
@@ -124,18 +124,20 @@ class MatchDataHistorySplit:
 
     def create_new_history(self, images: np.array):
         new_history = {}
+        remaining_history = {}
         for session, history in self.history.items():
             new_history[session] = {}
+            remaining_history[session] = {}
             for time, scoring in history.items():
                 if scoring["left_image"] in images or scoring["right_image"] in images:
                     new_history[session][time] = scoring
-                    self.history[session].pop(time)
-                
-        return new_history
+                else:
+                    remaining_history[session][time] = scoring
+        return new_history, remaining_history
     
-    def hold_out_test(self, ratio: float = 0.2):
-        if self.seed is not None:
-            torch.manual_seed(self.seed)
+    def hold_out(self, ratio: float = 0.2, seed: int = None):
+        if seed is not None:
+            torch.manual_seed(seed)
         
         n = len(self.remaining_images)
         indices = torch.randperm(n)
@@ -144,23 +146,43 @@ class MatchDataHistorySplit:
         test_images = self.remaining_images[indices[:test_index]]
         self.remaining_images = self.remaining_images[indices[test_index:]]
 
-        test_history = self.create_new_history(test_images)
+        test_history, self.history = self.create_new_history(test_images)
         
         return self.history, test_history
 
+    def cross_fold(self, n_splits: int = 10, seed: int = None):
+        if seed is not None:
+            torch.manual_seed(seed)
+        
+        n = len(self.remaining_images)
+        indices = torch.randperm(n)
+        fold_size = n // n_splits
+
+        val_folds = []
+        train_folds = []
+        for i in range(n_splits):
+            val_index = indices[i*fold_size:(i+1)*fold_size]
+            val_images = self.remaining_images[val_index]
+
+            val_history, train_history = self.create_new_history(val_images)
+            val_folds.append(val_history)
+            train_folds.append(train_history)
+        
+        return train_folds, val_folds
 
 
 class EmbeddedMatchDataSplit:
 
     def __init__(self, image_folder: str, labels: dict, seed: int = None):
-        self.data, self.target, self.image_matches = self.load_images(image_folder, labels)
         self.seed = seed
+        self.data, self.target, self.image_matches = self.load_images(image_folder, labels)        
     
     def load_images(self, image_folder: str, labels: dict):
         data = []
         target = []
         image_matches = defaultdict(lambda: [])
         count = 0
+        np.random.seed(self.seed)
         for session, history in labels.items():
             for time, scoring in history.items():
                 # Skip ties
@@ -173,8 +195,12 @@ class EmbeddedMatchDataSplit:
                 image_file_2 = os.path.join(image_folder, img_2)
                 embed_1 = torch.load(image_file_1)
                 embed_2 = torch.load(image_file_2)
-                data.append(torch.cat([embed_1, embed_2]))
-                target.append(scoring["winner"])
+                if np.random.rand() > 0.5:
+                    data.append(torch.cat([embed_1, embed_2]))
+                    target.append(scoring["winner"])
+                else:
+                    data.append(torch.cat([embed_2, embed_1]))
+                    target.append(1 - scoring["winner"])
                 image_matches[img_1].append((count, img_2))
                 image_matches[img_2].append((count, img_1))
                 count += 1
@@ -183,34 +209,7 @@ class EmbeddedMatchDataSplit:
 
         return data, target, image_matches
     
-    def hold_out_test(self, ratio: float = 0.2):
-        if self.seed is not None:
-            torch.manual_seed(self.seed)
-        
-        images = np.array(list(self.image_matches.keys()))
-        n = len(images)
-        indices = torch.randperm(n)
-        test_index = int(n * ratio)
-        test_images = images[indices[:test_index]]
-        test_data_indices = []
-        test_target_indices = []
-        for image in test_images:
-            for idx, opponent in self.image_matches[image]:
-                test_data_indices.append(idx)
-                test_target_indices.append(idx)
-
-                # Remove the match from the image_matches of the other image
-                self.image_matches[opponent].remove((idx, image))
-
-            del self.image_matches[image]
-        
-        test_data = self.data[test_data_indices]
-        test_targets = self.target[test_target_indices]
-
-        return (test_data, test_targets)
-    
-
-    def split_data(self, ratio: float = 0.8, seed: int = None):
+    def split_data(self, train_atio: float = 0.8, seed: int = None):
         if seed is not None:
             torch.manual_seed(seed)
         
@@ -218,7 +217,7 @@ class EmbeddedMatchDataSplit:
         images = np.array(list(self.image_matches.keys()))
         n = len(images)
         indices = torch.randperm(n)
-        val_index = int(n * (1 - ratio))
+        val_index = int(n * (1 - train_atio))
         val_images = images[indices[:val_index]]
         val_data_indices = []
         val_target_indices = []
