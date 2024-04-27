@@ -15,7 +15,7 @@ from PIL import Image
 
 
 
-def get_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: callable, device: str, r_min=800, r_max=1800):
+def get_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: callable, device: str, r_min=0, r_max=1):
     # Plot predictions on test set
     test_predictions = []
     test_names = []
@@ -29,32 +29,30 @@ def get_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: ca
             test_predictions.append(pred)
             test_names.append(name)
             test_targets.append(target)
-            debug = 1
 
-    test_predictions = torch.round(torch.cat(test_predictions).cpu()) * ((r_max - r_min) + r_min)
+    test_predictions = torch.cat(test_predictions).cpu()
     test_targets = torch.cat(test_targets).cpu()
     new_test_names = []
     for name in test_names:
         new_name = str(name).split("[")[1].split("]")[0]
         new_test_names.append(f"{new_name}.jpg")
         
-    # Plot histogram of test predictions and targets
-    fig, axes = plt.subplots(1, 2, figsize=(15, 6))
-    colors = ['skyblue', 'salmon']
-    titles = ['Predictions', 'Targets']
-    for ax, data, title, color in zip(axes, [test_predictions, test_targets], titles, colors):
-        ax.hist(data, bins=50, alpha=0.75, label=title, color=color)
-        ax.axvline(data.mean(), color='darkred', linestyle='dashed', linewidth=2, label='Mean')
-        ax.set_xlim(r_min-5, r_max+5)
-        ax.set_xlabel('Value')
-        ax.set_ylabel('Frequency')
-        ax.set_title(title)
-        ax.legend()
-        ax.grid(True)  # Adding grid lines
+    # Plot histogram of test predictions
+    fig, ax = plt.subplots(figsize=(7, 6))  # Adjusted for one plot
+    color = 'skyblue'
+    data = test_predictions
+    title = 'Predictions'
+    ax.hist(data, bins=50, alpha=0.75, label=title, color=color)
+    ax.axvline(data.mean(), color='darkred', linestyle='dashed', linewidth=2, label='Mean')
+    ax.set_xlim(-0.1, 1.1)
+    ax.set_xlabel('Value')
+    ax.set_ylabel('Frequency')
+    ax.set_title(title)
+    ax.legend()
+    ax.grid(True)  # Adding grid lines
 
     fig.suptitle(f"Predictions on test set, test loss: {test_loss:.2f}", fontsize=14, fontweight='bold')
     plt.tight_layout()
-    plt.subplots_adjust(top=0.88)  # Adjust the top to accommodate the suptitle
     plt.show()
     
     return test_predictions, test_targets, new_test_names
@@ -92,7 +90,7 @@ def plot_3x3grid(pictures, labels, title: str):
     for i, (path, label) in enumerate(zip(paths, labels)):
         img = Image.open(path)  # Load image from path
         axes[i].imshow(img)  # Display image
-        axes[i].set_title(f'Label: {round(label)}', fontsize=12, fontweight='bold', color='blue')  # Enhanced title styling
+        axes[i].set_title(f'{round(label,2)}', fontsize=12, fontweight='bold', color='blue')  # Enhanced title styling
         axes[i].axis('off')  # Turn off the axis
 
         # Optionally, you can add a border around each image
@@ -110,9 +108,19 @@ if __name__=='__main__':
     parser = ArgumentParser()
     parser.add_argument('name', type=str, help="Name of the user")
     # parser.add_argument('--folder', default='data/processed/unseen', type=str, help="Folder containing images")
+    parser.add_argument('--scoring', default='elo', type=str, choices=['elo', 'scale_9'], help="Scoring method to use")
     parser.add_argument('--batch_size', default=32, type=int, help="Batch size to use")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate to use")
+    parser.add_argument('--score_type', default='original', choices=['original', 'logic', 'clip'], help="Decide which score type to use")
     args = parser.parse_args()
+
+    name = args.name
+    scoring = args.scoring
+    if args.score_type == 'original':
+        score_type = ""
+    else:
+        score_type = f"_{args.score_type}"
+        
 
     # Load the feautre extractor and the preprocess function
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -123,29 +131,31 @@ if __name__=='__main__':
     loss_func = nn.MSELoss()
 
     # Load the best model
-    model.load_state_dict(torch.load(f'models/elo/full/{args.name}.pt'))
+    model.load_state_dict(torch.load(f'models/{scoring}/full/{args.name}{score_type}.pt'))
     
-    # We need to get the r_min, r_max for normalising the predictions
-    train_scoring_path = Path(f'scores/full/elo/{args.name}.json')
+    # We need to get the r_min, r_max for un-normalising the predictions
+    train_scoring_path = Path(f'scores/full/{scoring}/{name}{score_type}.json')
     with open(train_scoring_path, 'r') as f:
         train_labels = json.load(f)
         
     train_data = EmbeddedEloDataset("data/embedded/full", train_labels)
     r_min, r_max = train_data.r_min, train_data.r_max
     
-    test_scoring_path = Path(f'scores/unseen/elo/{args.name}.json')
+    test_scoring_path = Path(f'scores/unseen/{scoring}/{name}{score_type}.json')
     with open(test_scoring_path, 'r') as f:
         test_labels = json.load(f)
     
     test_data = EmbeddedEloDataset('data/embedded/unseen', test_labels)
     test_loader = DataLoader(test_data, batch_size=1, shuffle=False) 
     
-    predictions, test_targets, test_names = get_predictions_elo(model, test_loader, loss_func, device, r_min, r_max)
+    predictions, test_targets, test_names = get_predictions_elo(model, test_loader, loss_func, device) #, r_min, r_max)
     
     best_9_preds, best_9_names, worst_9_preds, worst_9_names, middle_9_preds, middle_9_names = get_9(predictions, test_names)
     
-    plot_3x3grid(worst_9_names, worst_9_preds, "worst")
-    plot_3x3grid(middle_9_names, middle_9_preds, "middle")
-    plot_3x3grid(best_9_names, best_9_preds, "best")
+    plot_3x3grid(worst_9_names, worst_9_preds, "Worst")
+    plot_3x3grid(middle_9_names, middle_9_preds, "Mid")
+    plot_3x3grid(best_9_names, best_9_preds, "Best")
+    
+    # TODO save to dictionary in a file. 
     
     debug = 1 

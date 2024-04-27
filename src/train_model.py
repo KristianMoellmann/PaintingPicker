@@ -112,7 +112,7 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
         
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), f'models/{scoring}/{os.path.basename(args.folder)}/{args.name}.pt')
+            torch.save(model.state_dict(), f'models/{scoring}/{os.path.basename(args.folder)}/{args.name}_{args.score_type}.pt')
 
         train_losses.append(train_loss)
         val_losses.append(val_loss)
@@ -318,7 +318,7 @@ if __name__=='__main__':
             plt.show()
 
         # Load the best model
-        model.load_state_dict(torch.load(f'models/{args.scoring}/{os.path.basename(args.folder)}/{args.name}.pt'))
+        model.load_state_dict(torch.load(f'models/{args.scoring}/{os.path.basename(args.folder)}/{args.name}_{args.score_type}.pt'))
 
         if args.scoring == 'scale_9':
             test_loss = plot_predictions_scale9(model, test_loader, loss_func, device)
