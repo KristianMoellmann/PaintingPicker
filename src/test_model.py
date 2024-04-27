@@ -114,7 +114,7 @@ if __name__=='__main__':
     parser.add_argument('--batch_size', default=32, type=int, help="Batch size to use")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate to use")
     parser.add_argument('--score_type', default='original', choices=['original', 'logic', 'clip'], help="Decide which score type to use")
-    parser.add_argument('--model', default='non', choices=['non', 'model1', 'model2', "model3", "model4"], help="Decide which score type to use")
+    parser.add_argument('--model', default='non', choices=["non", "clip", "logic", "original", "scale_9"], help="Decide which score type to use")
     # add boolean argument for plotting
     parser.add_argument('--plot', default=False, type=bool, help="Plot the predictions")
     args = parser.parse_args()
