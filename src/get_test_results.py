@@ -50,5 +50,5 @@ if __name__ == "__main__":
     main(args.name, args.scoring, args.score_type, args.model, args.plot)
     
     # Example usage:
-    # Python src/get_test_results.py kasper --scoring elo --score_type logic --model model1 --plot False
+    # Python src/get_test_results.py kasper --scoring elo --score_type logic --model non --plot False
     
