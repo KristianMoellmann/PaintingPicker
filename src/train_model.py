@@ -124,12 +124,13 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
     val_losses = []
 
     best_val_loss = float('inf')
+    best_model = None
 
     # pbar = tqdm(range(epochs), leave=True)
     for epoch in range(epochs):
         # pbar.set_description(f"Epoch {epoch+1}/{epochs}")
         train_loss = 0
-        for image, target, name in train_loader:  # 
+        for image, target, name in train_loader:  # remove 'name' if args.scoring == 'scale_9'
             image = image.to(device)
             target = target.to(device)
 
@@ -144,7 +145,7 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
 
         with torch.no_grad():
             val_loss = 0
-            for image, target, name in val_loader:  # 
+            for image, target, name in val_loader:  # remove 'name' if args.scoring == 'scale_9'
                 image = image.to(device)
                 target = target.to(device)
 
@@ -155,7 +156,7 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
         
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), f'models/{scoring}/{os.path.basename(args.folder)}/{args.name}_{args.score_type}.pt')
+            best_model = model
 
         train_losses.append(train_loss)
         val_losses.append(val_loss)
@@ -163,7 +164,7 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
 
     # print(f"Best validation loss: {best_val_loss:.3f}")
 
-    return train_losses, val_losses
+    return train_losses, val_losses, best_model
 
 def plot_predictions_scale9(model: nn.Module, test_loader: DataLoader, loss_func: callable, device: str):
     # Plot predictions on test set
@@ -382,10 +383,22 @@ if __name__=='__main__':
         test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False)
 
         # Train the model
-        model_save_path = f'models/{args.scoring}/{os.path.basename(args.folder)}'
-        os.makedirs(model_save_path, exist_ok=True)
+        if args.scoring == 'scale_9':
+            model_dir_path = f'models/{os.path.basename(args.folder)}/{args.scoring}'
+        else:
+            model_dir_path = f'models/{os.path.basename(args.folder)}/{args.scoring}/{args.score_type}'
 
-        train_losses, val_losses = train(model, train_loader, val_loader, optimizer, loss_func, args.epochs, device, args.scoring)
+        os.makedirs(model_dir_path, exist_ok=True)
+
+        train_losses, val_losses, best_model = train(model, train_loader, val_loader, optimizer, loss_func, args.epochs, device, args.scoring)
+
+        if args.scoring == 'scale_9':
+            model_path = f'models/{os.path.basename(args.folder)}/{args.scoring}/{args.name}.pt'
+        else:
+            model_path = f'models/{os.path.basename(args.folder)}/{args.scoring}/{args.score_type}/{args.name}.pt'
+
+        torch.save(best_model.state_dict(), model_path)
+        
 
         if not args.dont_plot:
             # Plot the losses
@@ -399,7 +412,7 @@ if __name__=='__main__':
             plt.show()
 
         # Load the best model
-        model.load_state_dict(torch.load(f'models/{args.scoring}/{os.path.basename(args.folder)}/{args.name}_{args.score_type}.pt'))
+        model.load_state_dict(torch.load(model_path))
 
         if args.scoring == 'scale_9':
             test_loss, tau = plot_predictions_scale9(model, test_loader, loss_func, device)
