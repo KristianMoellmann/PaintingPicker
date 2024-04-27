@@ -118,7 +118,7 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
         
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), f'models/{scoring}/{os.path.basename(args.folder)}/{args.name}_cv{cv_index}.pt')
+            torch.save(model.state_dict(), f'{model_save_path}/{args.name}_cv{cv_index}.pt')
 
         train_losses.append(train_loss)
         train_accs.append(train_acc)
@@ -221,9 +221,9 @@ if __name__=='__main__':
     parser.add_argument('--folder', default='data/processed/full', type=str, help="Folder containing images")
     parser.add_argument('--model', default='ViT-B/32', type=str, help="Model to use")
     parser.add_argument('--epochs', default=100, type=int, help="Number of epochs to train the model")
-    parser.add_argument('--batch-size', default=32, type=int, help="Batch size to use")
+    parser.add_argument('--batch-size', default=64, type=int, help="Batch size to use")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate to use")
-    parser.add_argument('--seed', default=500, type=int, help="Seed to use for reproducibility")
+    parser.add_argument('--seed', default=23, type=int, help="Seed to use for reproducibility")
     parser.add_argument('--logic', action='store_true', help='Use the logic model to simulate training data')
     args = parser.parse_args()
 
@@ -253,14 +253,14 @@ if __name__=='__main__':
     optimizer = None
 
     history_data = MatchDataHistorySplit(labels)
-    _, history_test = history_data.hold_out(ratio=0.1, seed=args.seed)
+    _, history_test = history_data.hold_out(ratio=0.1)
 
-    test_data_split = EmbeddedMatchDataSplit(args.folder, history_test, seed=args.seed)
+    test_data_split = EmbeddedMatchDataSplit(args.folder, history_test)
     test_dataset = EmbeddedMatchDataset(test_data_split.data, test_data_split.target)    
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
 
-    history_train_folds, history_val_folds = history_data.cross_fold(n_splits=10, seed=args.seed+1)
+    history_train_folds, history_val_folds = history_data.cross_fold(n_splits=10)
 
     train_losses = []
     train_accs = []
@@ -271,7 +271,7 @@ if __name__=='__main__':
 
         model = MatchNet().to(device)
 
-        val_data_split = EmbeddedMatchDataSplit(args.folder, history_val, seed=args.seed+2)
+        val_data_split = EmbeddedMatchDataSplit(args.folder, history_val)
         val_dataset = EmbeddedMatchDataset(val_data_split.data, val_data_split.target)
 
         if args.logic:
@@ -283,7 +283,7 @@ if __name__=='__main__':
             # Update the history with the new matches
             history_train = update_history(pure_wins, history_train)
         
-        train_data_split = EmbeddedMatchDataSplit(args.folder, history_train, seed=args.seed+3)
+        train_data_split = EmbeddedMatchDataSplit(args.folder, history_train)
         train_dataset = EmbeddedMatchDataset(train_data_split.data, train_data_split.target)
 
 
@@ -301,7 +301,7 @@ if __name__=='__main__':
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
         # Train the model
-        model_save_path = f'models/{scoring}/{os.path.basename(args.folder)}'
+        model_save_path = f'models/{os.path.basename(args.folder)}/{scoring}/match'
         os.makedirs(model_save_path, exist_ok=True)
 
         train_loss, train_acc, val_losse, val_acc = train(model, train_loader, val_loader, optimizer, loss_func, args.epochs, device, scoring, cv_index)
@@ -344,7 +344,7 @@ if __name__=='__main__':
     test_accs = []
     for i in range(10):
         # Load the best model
-        model.load_state_dict(torch.load(f'models/{scoring}/{os.path.basename(args.folder)}/{args.name}_cv{i}.pt'))
+        model.load_state_dict(torch.load(f'{model_save_path}/{args.name}_cv{i}.pt'))
 
         # Plot predictions on test set
         test_predictions = []
@@ -373,3 +373,10 @@ if __name__=='__main__':
 
     print(f"Mean test loss: {test_losses.mean()}, Std test loss: {test_losses.std()}")
     print(f"Mean test acc: {test_accs.mean()}, Std test acc: {test_accs.std()}")
+
+    # Save the best model according to the test loss
+    best_model_index = test_losses.argmin()
+    best_model_path = f'{model_save_path}/{args.name}_cv{best_model_index}.pt'
+    print(f"Best model: {best_model_path}")
+    best_state_dict = torch.load(best_model_path)
+    torch.save(best_state_dict, f'{model_save_path}/{args.name}.pt')

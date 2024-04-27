@@ -10,8 +10,6 @@ def evaluate_results(file_path):
         for sim_type, sym_data in data.items():
             print(f"    Simulation type: {sim_type}")
             for model, model_data in sym_data.items():
-                if model != "ScaleNetV2":
-                    continue
                 print(f"        Model: {model}")
                 model_avg_test_loss = []
                 for person, person_data in model_data.items():

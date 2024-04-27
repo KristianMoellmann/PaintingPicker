@@ -125,7 +125,6 @@ if __name__ == "__main__":
     parser.add_argument("name", type=str)
     parser.add_argument("--dataset", type=str, default="full")
     parser.add_argument("--num-matches", type=int, default=10_000)
-    parser.add_argument("--cv", default=None, type=int)
     args = parser.parse_args()
 
     # Load current ratings
@@ -142,10 +141,7 @@ if __name__ == "__main__":
 
     # Load the model
     model = MatchNet()
-    if args.cv is not None:
-        model.load_state_dict(torch.load(f"models/elo/{args.dataset}/{args.name}_cv{args.cv}.pt"))
-    else:
-        model.load_state_dict(torch.load(f"models/elo/{args.dataset}/{args.name}.pt"))
+    model.load_state_dict(torch.load(f"models/{args.dataset}/elo/match/{args.name}.pt"))
     model.eval()
 
     # Get all image names
