@@ -9,6 +9,7 @@ import json
 from datetime import datetime
 from tqdm import tqdm
 import numpy as np
+from argparse import ArgumentParser
 
 class Rating(tk.CTk):
 

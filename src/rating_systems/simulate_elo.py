@@ -10,6 +10,8 @@ import random
 from pathlib import Path
 import shutil
 from datetime import datetime
+from argparse import ArgumentParser
+
 
 
 def load_match_data(filename):
@@ -168,8 +170,8 @@ def simulate_matches(upcoming_matches, scores):
     return scores
     
 
-def save_image_scores(new_scores, path_name, original_path, path_case):
-    scores_file = Path(f'scores/{path_case}/elo/{path_name}_logic.json')
+def save_image_scores(new_scores, path_name, original_path, data):
+    scores_file = Path(f'scores/{data}/elo/{path_name}_logic.json')
     if not scores_file.exists():
         # Create the directory if it doesn't exist
         scores_file.parent.mkdir(parents=True, exist_ok=True)
@@ -180,7 +182,7 @@ def save_image_scores(new_scores, path_name, original_path, path_case):
                 
 
 # TODO this might work
-def save_match_history(match_history, upcoming_matches, path_name, original_history_path, path_case):
+def save_match_history(match_history, upcoming_matches, path_name, original_history_path, data):
     sessions = list(match_history.keys())
     new_session = int(max(sessions)) +  1
     match_history[new_session] = {}
@@ -195,7 +197,7 @@ def save_match_history(match_history, upcoming_matches, path_name, original_hist
             "winner": 0
             }
     
-    history_file = Path(f'scores/{path_case}/elo/{path_name}_logic_history.json')
+    history_file = Path(f'scores/{data}/elo/{path_name}_logic_history.json')
     if not history_file.exists():
         # Create the directory if it doesn't exist
         history_file.parent.mkdir(parents=True, exist_ok=True)
@@ -206,29 +208,35 @@ def save_match_history(match_history, upcoming_matches, path_name, original_hist
 
 
 def main():
-    path_case = "unseen" # "unseen" , "full"
-    for path_name in ["Kristian"]: # "kristoffer", "kristoffer_r", "Kristian", "darkness", "darkness_r", "darkness_2500", "darkness_r_2500"]:
-        # Load data
-        original_path = f'scores/{path_case}/elo/{path_name}.json'
-        image_names_with_elo = load_match_data(original_path)
-        
-        # TODO implement test set
-        
-        original_history_path = f'scores/{path_case}/elo/{path_name}_history.json'
-        match_history = load_match_data(f'scores/{path_case}/elo/{path_name}_history.json')
-        
-        # find pure wins
-        init_wins_and_loses = initialize_dictionarioary(match_history, image_names_with_elo)
-        pure_wins = find_transitative_wins_and_loses(init_wins_and_loses)
-        # plot_unique_wins(pure_wins, path_name)
-        
-        # simulate the elo rating system
-        upcoming_matches = create_upcoming_match_list(pure_wins)
-        new_scores = simulate_matches(upcoming_matches, image_names_with_elo)
-        
-        # save the new scores
-        save_image_scores(new_scores, path_name, original_path, path_case)
-        save_match_history(match_history, upcoming_matches, path_name, original_history_path, path_case)
+    parser = ArgumentParser()
+    parser.add_argument('name', type=str, help="Name of the user")
+    parser.add_argument('--data', default='unseen', type=str, choices=['full', 'unseen'], help="data to use")
+    
+    args = parser.parse_args()
+    data = args.data
+    path_name = args.name
+    # for path_name in ["Kristian"]: # "kristoffer", "kristoffer_r", "Kristian", "darkness", "darkness_r", "darkness_2500", "darkness_r_2500"]:
+    # Load data
+    original_path = f'scores/{data}/elo/{path_name}.json'
+    image_names_with_elo = load_match_data(original_path)
+    
+    # TODO implement test set
+    
+    original_history_path = f'scores/{data}/elo/{path_name}_history.json'
+    match_history = load_match_data(f'scores/{data}/elo/{path_name}_history.json')
+    
+    # find pure wins
+    init_wins_and_loses = initialize_dictionarioary(match_history, image_names_with_elo)
+    pure_wins = find_transitative_wins_and_loses(init_wins_and_loses)
+    # plot_unique_wins(pure_wins, path_name)
+    
+    # simulate the elo rating system
+    upcoming_matches = create_upcoming_match_list(pure_wins)
+    new_scores = simulate_matches(upcoming_matches, image_names_with_elo)
+    
+    # save the new scores
+    save_image_scores(new_scores, path_name, original_path, data)
+    save_match_history(match_history, upcoming_matches, path_name, original_history_path, data)
         
 
 if __name__ == "__main__":
