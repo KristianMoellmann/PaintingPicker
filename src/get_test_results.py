@@ -15,13 +15,15 @@ def execute_command(command):
         print(f"Error executing {command}: {e}\n{e.stderr}")
 
 
-def main(name, scoring, data, score_type, model, plot):
+def main(name, scoring, score_type, model, plot):
     """Run specified commands for a given name."""
     commands = [
-        f"Python src/rating_systems/rating.py {name} --folder data/processed/{data}",
-        f"Python src/rating_systems/simulate_elo.py {name} --data {data}",
-        f"Python src/train_model.py {name} --scoring {scoring} --score_type {score_type} --dont_plot",
-        f"Python src/test_model.py {name} --scoring {scoring} --score_type {score_type} --model {model} --plot {plot}"
+        f"Python src/data/make_dataset.py unseen",
+        f"Python src/data/embed_dataset.py unseen",
+        f"Python src/rating_systems/rating.py {name} --folder data/processed/unseen",
+        f"Python src/rating_systems/simulate_elo.py {name} --data unseen",
+        # f"Python src/train_model.py {name} --scoring {scoring} --score_type {score_type} --dont_plot",
+        # f"Python src/test_model.py {name} --scoring {scoring} --score_type {score_type} --model {model} --plot {plot}"
     ]
 
     for command in commands:
@@ -38,15 +40,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Execute specific operations for a given name.")
     parser.add_argument('name', type=str, help="Name to use in commands")
     parser.add_argument("--scoring", default="elo", type=str, choices=["elo", "scale_9"], help="Scoring method to use")
-    parser.add_argument("--data", default="unseen", type=str, choices=["full", "unseen"], help="Data to use")
+    # parser.add_argument("--data", default="unseen", type=str, choices=["full", "unseen"], help="Data to use")
     parser.add_argument("--score_type", default="logic", type=str, choices=["original", "logic", "clip"], help="Score type to use")
-    parser.add_argument("--model", default="non", type=str, choices=["non", "model1", "model2", "model3", "model4"], help="Model to use")
+    parser.add_argument("--model", default="non", type=str, choices=["non", "clip", "logic", "original", "scale_9"], help="Model to use")
     parser.add_argument('--plot', default=False, type=bool, help="Plot the predictions")
 
     args = parser.parse_args()
     
-    main(args.name, args.scoring, args.data, args.score_type, args.model, args.plot)
+    main(args.name, args.scoring, args.score_type, args.model, args.plot)
     
     # Example usage:
-    # Python get_test_results.py kristoffer --scoring elo --data unseen --score_type logic --model model1 --plot True
+    # Python src/get_test_results.py kasper --scoring elo --score_type logic --model non --plot False
     
