@@ -2,6 +2,9 @@ import argparse
 import shutil
 from glob import glob
 import json
+import os
+from PIL import Image
+import numpy as np
 
 
 def extract_data(dataset):
@@ -29,15 +32,24 @@ def extract_data(dataset):
         
         pictures_seen_before = set(list(kasper_before.keys()) + list(kristoffer_before.keys()))
         images = []
-        
+        image_values = set()
         count = 0
         for image in all_images:
-            if image[9:] not in pictures_seen_before:
-                images.append(image)
-                count += 1
-                if count == 1000:
-                    break
+            if os.path.basename(image) not in pictures_seen_before:
                 
+                # This is to make sure that we get unique images
+                current_image = np.array(Image.open(image))
+                rbg_mean = np.mean(current_image, axis=(0, 1))
+                rbg_std = np.std(current_image, axis=(0, 1))
+                unique_value = (rbg_mean * rbg_std).sum()
+                if unique_value not in image_values:
+                    image_values.add(unique_value)
+                    
+                    images.append(image)
+                    count += 1
+                    if count == 1000:
+                        break
+                    
         
     shutil.rmtree(f'data/processed/{dataset}', ignore_errors=True)
     shutil.os.makedirs(f'data/processed/{dataset}')

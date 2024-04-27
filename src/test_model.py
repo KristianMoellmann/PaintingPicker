@@ -14,8 +14,7 @@ from train_model import ScaleNetV2
 from PIL import Image
 
 
-
-def get_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: callable, device: str, r_min=0, r_max=1):
+def get_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: callable, device: str):
     # Plot predictions on test set
     test_predictions = []
     test_names = []
@@ -113,19 +112,17 @@ if __name__=='__main__':
     parser.add_argument('--scoring', default='elo', type=str, choices=['elo', 'scale_9'], help="Scoring method to use")
     parser.add_argument('--batch_size', default=32, type=int, help="Batch size to use")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate to use")
-    parser.add_argument('--score_type', default='original', choices=['original', 'logic', 'clip'], help="Decide which score type to use")
-    parser.add_argument('--model', default='non', choices=["non", "clip", "logic", "original", "scale_9"], help="Decide which score type to use")
+    parser.add_argument('--model_type', default='clip', choices=["clip", "logic", "original", "scale_9"], help="Decide which score type to use")
     # add boolean argument for plotting
     parser.add_argument('--plot', default=False, type=bool, help="Plot the predictions")
     args = parser.parse_args()
-
-    name = args.name
     scoring = args.scoring
-    if args.score_type == 'original':
-        score_type = ""
-    else:
-        score_type = f"_{args.score_type}"
-        
+    model_type = args.model_type
+    
+    # exmaple usage: Python src/test_model.py Kristian --scoring elo --model_type logic --plot True
+    
+    name = args.name
+    scoring = args.scoring        
 
     # Load the feautre extractor and the preprocess function
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -136,25 +133,19 @@ if __name__=='__main__':
     loss_func = nn.MSELoss()
 
     # Load the best model
-    model.load_state_dict(torch.load(f'models/{scoring}/full/{args.name}{score_type}.pt'))
+    if scoring == "scale_9":
+        model.load_state_dict(torch.load(f'models/full/{scoring}/{args.name}.pt', map_location=device))
+    else:
+        model.load_state_dict(torch.load(f'models/full/{scoring}/{model_type}/{args.name}.pt', map_location=device))
     
-    # We need to get the r_min, r_max for un-normalising the predictions
-    train_scoring_path = Path(f'scores/full/{scoring}/{name}{score_type}.json')
-    with open(train_scoring_path, 'r') as f:
-        train_labels = json.load(f)
-        
-    train_data = EmbeddedEloDataset("data/embedded/full", train_labels)
-    r_min, r_max = train_data.r_min, train_data.r_max
-    
-    test_scoring_path = Path(f'scores/unseen/{scoring}/{name}{score_type}.json')
+    test_scoring_path = Path(f'scores/unseen/elo/Kristian_logic.json') #NB same scores for all!
     with open(test_scoring_path, 'r') as f:
         test_labels = json.load(f)
     
     test_data = EmbeddedEloDataset('data/embedded/unseen', test_labels)
     test_loader = DataLoader(test_data, batch_size=1, shuffle=False) 
     
-    predictions, test_targets, test_names = get_predictions_elo(model, test_loader, loss_func, device) #, r_min, r_max)
-    # prediction_histgoram(predictions)
+    predictions, test_targets, test_names = get_predictions_elo(model, test_loader, loss_func, device)
     
     best_9_preds, best_9_names, worst_9_preds, worst_9_names, middle_9_preds, middle_9_names = get_9(predictions, test_names)
     
@@ -164,30 +155,45 @@ if __name__=='__main__':
         plot_3x3grid(middle_9_names, middle_9_preds, "Mid")
         plot_3x3grid(best_9_names, best_9_preds, "Best")
     
-    model = args.model
-    if model != 'non':
-        
-        worst_9 = {key: 0.1 for key in worst_9_names}
-        middle_9 = {key: 0.1 for key in middle_9_names}
-        best_9 = {key: 0.1 for key in best_9_names}
-        
-        pics_to_rated = Path(f'scores/predictions/{scoring}_{name}{score_type}.json')
-        
-        # Ensure the directory exists before trying to write the file
-        pics_to_rated.parent.mkdir(parents=True, exist_ok=True)
+    # Save the 9 best, 9 worst and 9 middle rated images
+    worst_9 = {key: 0.1 for key in worst_9_names}
+    middle_9 = {key: 0.1 for key in middle_9_names}
+    best_9 = {key: 0.1 for key in best_9_names}
+    
+    pics_to_rated = Path(f'scores/predictions/{name}.json')
+    
+    # Ensure the directory exists before trying to write the file
+    pics_to_rated.parent.mkdir(parents=True, exist_ok=True)
 
-        # Read the existing data if the file exists or initialize an empty dictionary
-        if pics_to_rated.exists():
-            with open(pics_to_rated, 'r') as f:
-                D = json.load(f)
-        else:
-            D = {}
+    # Read the existing data if the file exists or initialize an empty dictionary
+    if pics_to_rated.exists():
+        with open(pics_to_rated, 'r') as f:
+            D = json.load(f)
+    else:
+        D = {}
 
-        # Add the new model data to the dictionary
-        D[model] = {"worst": worst_9, "mid": middle_9, "best": best_9}
+    # Add the new model data to the dictionary
+    D[f"{scoring}_{model_type}"] = {"worst": worst_9, "mid": middle_9, "best": best_9}
 
-        # Write the updated dictionary to the file
-        with open(pics_to_rated, 'w') as f:
-            f.write(json.dumps(D, indent=4))
-            
-        debug = 1 
+    # Write the updated dictionary to the file
+    with open(pics_to_rated, 'w') as f:
+        f.write(json.dumps(D, indent=4))
+        
+    debug = 1 
+    
+    # TODO run script with all types and all users:
+    # Python src/test_model.py Kristian --scoring elo --model_type logic
+    # Python src/test_model.py Kristian --scoring elo --model_type original
+    # Python src/test_model.py Kristian --scoring elo --model_type clip
+    # Python src/test_model.py Kristian --scoring scale_9 --model_type scale_9
+    
+    # Python src/test_model.py kasper --scoring elo --model_type logic
+    # Python src/test_model.py kasper --scoring elo --model_type original
+    # Python src/test_model.py kasper --scoring elo --model_type clip
+    # Python src/test_model.py kasper --scoring scale_9 --model_type scale_9
+    
+    # Python src/test_model.py kristoffer --scoring elo --model_type logic
+    # Python src/test_model.py kristoffer --scoring elo --model_type original
+    # Python src/test_model.py kristoffer --scoring elo --model_type clip
+    # Python src/test_model.py kristoffer --scoring scale_9 --model_type scale_9
+    

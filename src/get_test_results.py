@@ -18,8 +18,8 @@ def execute_command(command):
 def main(name, scoring, score_type, model, plot):
     """Run specified commands for a given name."""
     commands = [
-        f"Python src/data/make_dataset.py unseen",
-        f"Python src/data/embed_dataset.py unseen",
+        # f"Python src/data/make_dataset.py unseen",
+        # f"Python src/data/embed_dataset.py unseen",
         f"Python src/rating_systems/rating.py {name} --folder data/processed/unseen",
         f"Python src/rating_systems/simulate_elo.py {name} --data unseen",
         # f"Python src/train_model.py {name} --scoring {scoring} --score_type {score_type} --dont_plot",
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("--scoring", default="elo", type=str, choices=["elo", "scale_9"], help="Scoring method to use")
     # parser.add_argument("--data", default="unseen", type=str, choices=["full", "unseen"], help="Data to use")
     parser.add_argument("--score_type", default="logic", type=str, choices=["original", "logic", "clip"], help="Score type to use")
-    parser.add_argument("--model", default="non", type=str, choices=["non", "clip", "logic", "original", "scale_9"], help="Model to use")
+    parser.add_argument("--model", default="clip", type=str, choices=["clip", "logic", "original", "scale_9"], help="Model to use")
     parser.add_argument('--plot', default=False, type=bool, help="Plot the predictions")
 
     args = parser.parse_args()
