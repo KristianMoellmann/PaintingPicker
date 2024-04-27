@@ -20,7 +20,6 @@ def get_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: ca
     test_predictions = []
     test_names = []
     test_targets = []
-    test_loss = 0
     model.eval()
     with torch.no_grad():
         for image, target, name in test_loader:
@@ -36,7 +35,12 @@ def get_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: ca
     for name in test_names:
         new_name = str(name).split("[")[1].split("]")[0]
         new_test_names.append(f"{new_name}.jpg")
-        
+            
+    return test_predictions, test_targets, new_test_names
+
+
+def prediction_histgoram(test_predictions):
+    
     # Plot histogram of test predictions
     fig, ax = plt.subplots(figsize=(7, 6))  # Adjusted for one plot
     color = 'skyblue'
@@ -51,11 +55,9 @@ def get_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: ca
     ax.legend()
     ax.grid(True)  # Adding grid lines
 
-    fig.suptitle(f"Predictions on test set, test loss: {test_loss:.2f}", fontsize=14, fontweight='bold')
+    fig.suptitle(f"Predictions on test set", fontsize=14, fontweight='bold')
     plt.tight_layout()
     plt.show()
-    
-    return test_predictions, test_targets, new_test_names
 
 
 def get_9(predictions, names):
@@ -112,6 +114,9 @@ if __name__=='__main__':
     parser.add_argument('--batch_size', default=32, type=int, help="Batch size to use")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate to use")
     parser.add_argument('--score_type', default='original', choices=['original', 'logic', 'clip'], help="Decide which score type to use")
+    parser.add_argument('--model', default='non', choices=['non', 'model1', 'model2', "model3", "model4"], help="Decide which score type to use")
+    # add boolean argument for plotting
+    parser.add_argument('--plot', default=False, type=bool, help="Plot the predictions")
     args = parser.parse_args()
 
     name = args.name
@@ -149,13 +154,40 @@ if __name__=='__main__':
     test_loader = DataLoader(test_data, batch_size=1, shuffle=False) 
     
     predictions, test_targets, test_names = get_predictions_elo(model, test_loader, loss_func, device) #, r_min, r_max)
+    # prediction_histgoram(predictions)
     
     best_9_preds, best_9_names, worst_9_preds, worst_9_names, middle_9_preds, middle_9_names = get_9(predictions, test_names)
     
-    plot_3x3grid(worst_9_names, worst_9_preds, "Worst")
-    plot_3x3grid(middle_9_names, middle_9_preds, "Mid")
-    plot_3x3grid(best_9_names, best_9_preds, "Best")
+    if args.plot:
+        prediction_histgoram(predictions)
+        plot_3x3grid(worst_9_names, worst_9_preds, "Worst")
+        plot_3x3grid(middle_9_names, middle_9_preds, "Mid")
+        plot_3x3grid(best_9_names, best_9_preds, "Best")
     
-    # TODO save to dictionary in a file. 
-    
-    debug = 1 
+    model = args.model
+    if model != 'non':
+        
+        worst_9 = {key: 0.1 for key in worst_9_names}
+        middle_9 = {key: 0.1 for key in middle_9_names}
+        best_9 = {key: 0.1 for key in best_9_names}
+        
+        pics_to_rated = Path(f'scores/predictions/{scoring}_{name}{score_type}.json')
+        
+        # Ensure the directory exists before trying to write the file
+        pics_to_rated.parent.mkdir(parents=True, exist_ok=True)
+
+        # Read the existing data if the file exists or initialize an empty dictionary
+        if pics_to_rated.exists():
+            with open(pics_to_rated, 'r') as f:
+                D = json.load(f)
+        else:
+            D = {}
+
+        # Add the new model data to the dictionary
+        D[model] = {"worst": worst_9, "mid": middle_9, "best": best_9}
+
+        # Write the updated dictionary to the file
+        with open(pics_to_rated, 'w') as f:
+            f.write(json.dumps(D, indent=4))
+            
+        debug = 1 
