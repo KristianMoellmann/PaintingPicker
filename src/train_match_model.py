@@ -5,6 +5,7 @@ import os
 import json
 import matplotlib.pyplot as plt
 import random
+import numpy as np
 from custom_data import EmbeddedMatchDataset, EmbeddedMatchDataSplit, MatchDataHistorySplit
 from torch.utils.data import DataLoader, random_split
 from argparse import ArgumentParser
@@ -222,7 +223,7 @@ if __name__=='__main__':
     parser.add_argument('--epochs', default=100, type=int, help="Number of epochs to train the model")
     parser.add_argument('--batch-size', default=32, type=int, help="Batch size to use")
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate to use")
-    parser.add_argument('--seed', default=42, type=int, help="Seed to use for reproducibility")
+    parser.add_argument('--seed', default=500, type=int, help="Seed to use for reproducibility")
     parser.add_argument('--logic', action='store_true', help='Use the logic model to simulate training data')
     args = parser.parse_args()
 
@@ -242,6 +243,9 @@ if __name__=='__main__':
     
     with open(scoring_path, 'r') as f:
         labels = json.load(f)
+
+    # Set seed
+    torch.manual_seed(args.seed)
 
     # Initialise things which must be defined according to the scoring method
     data = None
@@ -364,5 +368,8 @@ if __name__=='__main__':
         test_accs.append(test_acc)
         print(f"CV {i} Test loss: {test_loss}, Test acc: {test_acc}")
     
-    print(f"Mean test loss: {sum(test_losses)/len(test_losses)}")
-    print(f"Mean test acc: {sum(test_accs)/len(test_accs)}")
+    test_losses = np.array(test_losses)
+    test_accs = np.array(test_accs)
+
+    print(f"Mean test loss: {test_losses.mean()}, Std test loss: {test_losses.std()}")
+    print(f"Mean test acc: {test_accs.mean()}, Std test acc: {test_accs.std()}")
