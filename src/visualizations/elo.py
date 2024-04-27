@@ -123,6 +123,7 @@ def plot_elo_scores_scatter(score_dict: dict):
     ax.legend(loc='upper left')    
     ax.set_xlabel("Index")
     ax.set_ylabel("Normalised ELO")
+    ax.set_xlim(0, len(all_elos))
     # plt.title(f"ELO distribution\nMin: {min(all_elos):.2f}, Max: {max(all_elos):.2f}, Average: {sum(all_elos) / len(all_elos):.2f}, Unique: {len(set(all_elos))}")
     plt.tight_layout()
     plt.savefig(f"reports/figures/elo/elo_scatter_{args.name}.pdf")
