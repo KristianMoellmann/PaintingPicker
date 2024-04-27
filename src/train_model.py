@@ -129,7 +129,7 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
     for epoch in range(epochs):
         # pbar.set_description(f"Epoch {epoch+1}/{epochs}")
         train_loss = 0
-        for image, target, name in train_loader:
+        for image, target, name in train_loader:  # 
             image = image.to(device)
             target = target.to(device)
 
@@ -144,7 +144,7 @@ def train(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, op
 
         with torch.no_grad():
             val_loss = 0
-            for image, target, name in val_loader:
+            for image, target, name in val_loader:  # 
                 image = image.to(device)
                 target = target.to(device)
 
@@ -215,13 +215,13 @@ def plot_predictions_scale9(model: nn.Module, test_loader: DataLoader, loss_func
         ax.set_ylabel('Predicted rating')
         ax.set_title(f"Predictions on test set, test loss: {test_loss:.2f}, Kendall's tau corr.: {tau:.3f}")
         plt.tight_layout()
-        # plt.savefig(f"reports/figures/training/{args.name}_{args.scoring}_{args.score_type}_{model.name}_scatter.pdf")
+        plt.savefig(f"reports/figures/training/{args.name}_{args.scoring}_{args.score_type}_{model.name}_scatter.pdf")
         plt.show()
     # print(f"Test loss: {test_loss:.3f}")
 
     return test_loss, tau
 
-def  plot_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: callable, device: str):
+def plot_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: callable, device: str):
     # Plot predictions on test set
     test_predictions = []
     test_targets = []
@@ -244,8 +244,6 @@ def  plot_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: 
     tau = stats.kendalltau(test_targets, test_predictions).statistic
 
     if not args.dont_plot:
-        # Calculate Kendall's tau
-
         # Scatter plot of test predicitons and targets
         fig, ax = plt.subplots(figsize=(7, 6))
         ax.scatter(test_targets, test_predictions, alpha=0.5)
@@ -259,19 +257,6 @@ def  plot_predictions_elo(model: nn.Module, test_loader: DataLoader, loss_func: 
         plt.savefig(f"reports/figures/training/{args.name}_{args.scoring}_{args.score_type}_{model.name}_scatter.pdf")
         plt.show()
 
-        # # Plot histogram of test predicitons and targets
-        # fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-        # for ax, data, title in zip(axes, [test_predictions, test_targets], ['Predictions', 'Targets']):
-        #     ax.hist(data, bins=100, alpha=0.5, label=title, color='blue')
-        #     ax.axvline(data.mean(), color='red', linestyle='dashed', linewidth=2)
-        #     ax.set_xlim(r_min-5, r_max+5)
-        #     # ax.set_ylim(0, 30)
-        #     # ax.xaxis.set_ticks(range(int(r_min), int(r_max)+1))
-        #     ax.set_title(title)
-        # fig.suptitle(f"Predictions on test set, test loss: {test_loss:.2f}")
-        # plt.tight_layout()
-        # plt.savefig(f"reports/figures/training/{args.name}_{args.scoring}_{args.score_type}_{model.name}_predictions.pdf")
-        # plt.show()
     return test_loss, tau
 
 
@@ -293,10 +278,12 @@ if __name__=='__main__':
     args = parser.parse_args()
     print(args)
 
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
+
     # Load the feautre extractor and the preprocess function
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    if args.name == 'kristoffer' and args.scoring == 'elo':
-        args.folder = args.folder.replace('full', 'full_kris')
 
     # Load the data
     if args.score_type == 'original':
@@ -307,9 +294,6 @@ if __name__=='__main__':
         scoring_path = Path(f'scores/{os.path.basename(args.folder)}/{args.scoring}/{args.name}_clip.json')
     else:
         raise ValueError("score_type must be one of 'original', 'logic', 'clip'")
-
-    if args.name == 'kristoffer' and args.scoring == 'scale_9':
-        args.folder = args.folder.replace('full', 'full_kris')
 
     if not scoring_path.exists():
         raise FileNotFoundError(f"Scoring file {scoring_path} does not exist")
@@ -364,6 +348,9 @@ if __name__=='__main__':
         loss_func = None
         optimizer = None
 
+        if args.name == 'kristoffer':
+            args.folder = args.folder.replace('full', 'full_kris')
+
         if args.scoring == 'elo':
             if args.embed_now:
                 raise ValueError("Elo scoring is not supported with 'embed_now' option. Please embed the images first using src/data/embed_dataset.py.")
@@ -382,7 +369,10 @@ if __name__=='__main__':
                 train_data = EmbeddedScaleDataset(args.folder, labels_train)
                 val_data = EmbeddedScaleDataset(args.folder, labels_val)
                 test_data = EmbeddedScaleDataset(args.folder, labels_test)
-                
+
+        if args.name == 'kristoffer':
+            args.folder = args.folder.replace('full_kris', 'full')  
+
         loss_func = nn.MSELoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
         
@@ -392,7 +382,7 @@ if __name__=='__main__':
         test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False)
 
         # Train the model
-        model_save_path = f'models/{os.path.basename(args.folder)}/{args.scoring}'
+        model_save_path = f'models/{args.scoring}/{os.path.basename(args.folder)}'
         os.makedirs(model_save_path, exist_ok=True)
 
         train_losses, val_losses = train(model, train_loader, val_loader, optimizer, loss_func, args.epochs, device, args.scoring)
