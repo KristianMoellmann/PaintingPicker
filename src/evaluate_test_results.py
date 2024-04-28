@@ -12,8 +12,10 @@ def evaluate_results(file_path):
             for model, model_data in sym_data.items():
                 print(f"        Model: {model}")
                 model_avg_test_loss = []
-                for person, person_data in model_data.items():
+                # for person, person_data in model_data.items():
+                for person in ['kasper', 'Kristian', 'kristoffer']:
                     print(f"            Person: {person}")
+                    person_data = model_data[person]
                     test_losses = person_data['test_losses']
                     avg_test_loss = sum(test_losses) / len(test_losses)
                     std_test_loss = np.std(test_losses)
