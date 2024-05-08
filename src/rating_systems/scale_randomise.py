@@ -52,7 +52,16 @@ class Scale(tk.CTk):
     def load_images_and_scores(self, scores_path):
         with open(scores_path, 'r') as f:
             scores = json.load(f)
-        
+
+        with open(self.old_scores_path, 'r') as f:
+            old_scores = json.load(f)
+
+        old_ratings = {}
+        for model, model_scores in old_scores.items():
+            for section, section_scores in model_scores.items():
+                for image, score in section_scores.items():
+                    old_ratings[image] = score
+
         # Get set of all images
         images = set()
         image_to_model = defaultdict(lambda: [])
@@ -62,9 +71,12 @@ class Scale(tk.CTk):
             for section, section_scores in model_scores.items():
                 scoring[model][section] = {}
                 for image, score in section_scores.items():
-                    scoring[model][section][image] = 0
-                    images.add(image)
-                    image_to_model[image].append((model, section))
+                    if image in old_ratings:
+                        scoring[model][section][image] = old_ratings[image]
+                    else:
+                        scoring[model][section][image] = 0
+                        images.add(image)
+                        image_to_model[image].append((model, section))
         images = list(images)
         # Randomise the order of the images
         random.shuffle(images)
