@@ -15,7 +15,10 @@ class Scale(tk.CTk):
         super().__init__()
         self.name = name
         self.folder = "data/raw/"
-        self.scores_path = Path(f'scores/predictions_100/{name}.json') # TODO changed to predictions_100
+        if os.path.exists(f'scores/predictions_100/{name}_rated.json'):
+            self.scores_path = Path(f'scores/predictions_100/{name}_rated.json')
+        else:
+            self.scores_path = Path(f'scores/predictions_100/{name}.json') # TODO changed to predictions_100
         self.old_scores_path = Path(f'scores/predictions/{name}_rated.json')
 
         self.title('Rating')
@@ -71,12 +74,17 @@ class Scale(tk.CTk):
             for section, section_scores in model_scores.items():
                 scoring[model][section] = {}
                 for image, score in section_scores.items():
+                    if score != 0 and score != 0.1:
+                        scoring[model][section][image] = score
+                        continue
+                    
                     if image in old_ratings:
                         scoring[model][section][image] = old_ratings[image]
                     else:
                         scoring[model][section][image] = 0
                         images.add(image)
                         image_to_model[image].append((model, section))
+
         images = list(images)
         # Randomise the order of the images
         random.shuffle(images)
@@ -125,6 +133,7 @@ class Scale(tk.CTk):
         score = event if isinstance(event, int) else int(event.char)
         self.update_scores(image_name, score)
         self.image_index += 1
+        self.save_image_scores()
         self.load_image()
 
     def run(self):
