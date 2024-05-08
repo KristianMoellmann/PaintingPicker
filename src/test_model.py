@@ -114,7 +114,7 @@ if __name__=='__main__':
     parser.add_argument('--lr', default=1e-3, type=float, help="Learning rate to use")
     parser.add_argument('--model_type', default='clip', choices=["clip", "logic", "original", "scale_9"], help="Decide which score type to use")
     # add boolean argument for plotting
-    parser.add_argument('--plot', default=False, type=bool, help="Plot the predictions")
+    parser.add_argument('--plot', action="store_true", help="Plot the predictions")
     args = parser.parse_args()
     scoring = args.scoring
     model_type = args.model_type
