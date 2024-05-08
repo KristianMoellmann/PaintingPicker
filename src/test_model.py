@@ -137,7 +137,7 @@ def plot_3x3grid(pictures, labels, title: str, border_color='black'):
     plt.tight_layout()
     # plt.subplots_adjust(top=0.92)  # Adjust top margin to make space for the main title
     fig.set_edgecolor(border_color)
-    fig.patch.set_linewidth(10)  # Set the line width of the plot edge
+    fig.patch.set_linewidth(20)  # Set the line width of the plot edge
     plt.savefig(f'reports/figures/{title}.pdf', edgecolor=fig.get_edgecolor())  # Save the plot
     # plt.show()  # Display the plot
     
@@ -242,6 +242,30 @@ if __name__=='__main__':
 
     # Write the updated dictionary to the file
     with open(pics_to_rated, 'w') as f:
+        f.write(json.dumps(D, indent=4))
+
+    # Save the 100 best, 100 worst and 100 middle rated images
+    worst_100_with_preds = {key: val.item() for key, val in zip(worst_100_names, worst_100_preds)}
+    middle_100_with_preds = {key: val.item() for key, val in zip(middle_100_names, middle_100_preds)}
+    best_100_with_preds = {key: val.item() for key, val in zip(best_100_names, best_100_preds)}
+    
+    pics_to_rated_with_preds = Path(f'scores/predictions_100/{name}_model_preds.json')
+    
+    # Ensure the directory exists before trying to write the file
+    pics_to_rated_with_preds.parent.mkdir(parents=True, exist_ok=True)
+
+    # Read the existing data if the file exists or initialize an empty dictionary
+    if pics_to_rated_with_preds.exists():
+        with open(pics_to_rated_with_preds, 'r') as f:
+            D = json.load(f)
+    else:
+        D = {}
+
+    # Add the new model data to the dictionary
+    D[f"{scoring}_{model_type}"] = {"worst": worst_100_with_preds, "mid": middle_100_with_preds, "best": best_100_with_preds}
+
+    # Write the updated dictionary to the file
+    with open(pics_to_rated_with_preds, 'w') as f:
         f.write(json.dumps(D, indent=4))
     
     # TODO run script with all types and all users:
