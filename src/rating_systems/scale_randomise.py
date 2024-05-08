@@ -15,7 +15,8 @@ class Scale(tk.CTk):
         super().__init__()
         self.name = name
         self.folder = "data/raw/"
-        self.scores_path = Path(f'scores/predictions/{name}.json')
+        self.scores_path = Path(f'scores/predictions_100/{name}.json') # TODO changed to predictions_100
+        self.old_scores_path = Path(f'scores/predictions/{name}_rated.json')
 
         self.title('Rating')
         self.geometry('1280x720')
@@ -74,7 +75,7 @@ class Scale(tk.CTk):
             self.scores[model][section][image_name] = score
 
     def save_image_scores(self):
-        scores_file = Path(f'scores/predictions/{self.name}_rated.json')
+        scores_file = Path(f'scores/predictions_100/{self.name}_rated.json')
         with open(scores_file, 'w') as f:
             json.dump(self.scores, f, indent=4)
     

@@ -79,9 +79,29 @@ def get_9(predictions, names):
     return best_9_predictions, best_9_names, worst_9_predictions, worst_9_names, middle_9_predictions, middle_9_names
 
 
+def get_100(predictions, names):
+    # Get the 9 best, 9 worst and 9 middle rated images
+    sorted_predictions = predictions.argsort()
+    
+    paired_sorted = sorted(zip(predictions, names))
+
+    # Unzip back into two lists
+    sorted_predictions, sorted_names = zip(*paired_sorted)
+    
+    # we get help from Anna, Elisabeth, Mikkel, Vi
+    best_100_predictions = sorted_predictions[-100:]
+    best_100_names = sorted_names[-100:]
+    worst_100_predictions = sorted_predictions[:100]
+    worst_100_names = sorted_names[:100]
+    middle_100_predictions = sorted_predictions[len(sorted_predictions)//2-50:len(sorted_predictions)//2+50]
+    middle_100_names = sorted_names[len(sorted_predictions)//2-50:len(sorted_predictions)//2+50]
+    
+    return best_100_predictions, best_100_names, worst_100_predictions, worst_100_names, middle_100_predictions, middle_100_names
+
+
 def plot_3x3grid(pictures, labels, title: str, border_color='black'):
     # Prepares full paths and converts labels to integers if they are in tensor format
-    paths = [f'data/processed/unseen/{name}' for name in pictures]
+    paths = [f'data/processed/all_unseen/{name}' for name in pictures] # TODO change to all_unseen
     labels = [label.item() if hasattr(label, 'item') else label for label in labels]
     
     # Setup the figure and axes
@@ -155,11 +175,11 @@ if __name__=='__main__':
     else:
         model.load_state_dict(torch.load(f'models/full/{scoring}/{model_type}/{args.name}.pt', map_location=device))
     
-    test_scoring_path = Path(f'scores/unseen/elo/Kristian_logic.json') #NB same scores for all!
+    test_scoring_path = Path(f'scores/all_unseen/elo/Kristian_logic.json') #NB same scores for all!
     with open(test_scoring_path, 'r') as f:
         test_labels = json.load(f)
     
-    test_data = EmbeddedEloDataset('data/embedded/unseen', test_labels)
+    test_data = EmbeddedEloDataset('data/embedded/all_unseen', test_labels)
     test_loader = DataLoader(test_data, batch_size=1, shuffle=False) 
     
     predictions, test_targets, test_names = get_predictions_elo(model, test_loader, loss_func, device)
@@ -177,7 +197,7 @@ if __name__=='__main__':
     middle_9 = {key: 0.1 for key in middle_9_names}
     best_9 = {key: 0.1 for key in best_9_names}
     
-    pics_to_rated = Path(f'scores/predictions/{name}.json')
+    pics_to_rated = Path(f'scores/predictions_9/{name}.json')
     
     # Ensure the directory exists before trying to write the file
     pics_to_rated.parent.mkdir(parents=True, exist_ok=True)
@@ -197,6 +217,32 @@ if __name__=='__main__':
         f.write(json.dumps(D, indent=4))
         
     debug = 1 
+    
+    best_100_preds, best_100_names, worst_100_preds, worst_100_names, middle_100_preds, middle_100_names = get_100(predictions, test_names)
+    
+    # Save the 100 best, 100 worst and 100 middle rated images
+    worst_100 = {key: 0.1 for key in worst_100_names}
+    middle_100 = {key: 0.1 for key in middle_100_names}
+    best_100 = {key: 0.1 for key in best_100_names}
+    
+    pics_to_rated = Path(f'scores/predictions_100/{name}.json')
+    
+    # Ensure the directory exists before trying to write the file
+    pics_to_rated.parent.mkdir(parents=True, exist_ok=True)
+
+    # Read the existing data if the file exists or initialize an empty dictionary
+    if pics_to_rated.exists():
+        with open(pics_to_rated, 'r') as f:
+            D = json.load(f)
+    else:
+        D = {}
+
+    # Add the new model data to the dictionary
+    D[f"{scoring}_{model_type}"] = {"worst": worst_100, "mid": middle_100, "best": best_100}
+
+    # Write the updated dictionary to the file
+    with open(pics_to_rated, 'w') as f:
+        f.write(json.dumps(D, indent=4))
     
     # TODO run script with all types and all users:
     # Python src/test_model.py Kristian --scoring elo --model_type logic

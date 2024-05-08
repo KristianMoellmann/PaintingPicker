@@ -210,7 +210,7 @@ def save_match_history(match_history, upcoming_matches, path_name, original_hist
 def main():
     parser = ArgumentParser()
     parser.add_argument('name', type=str, help="Name of the user")
-    parser.add_argument('--data', default='unseen', type=str, choices=['full', 'unseen'], help="data to use")
+    parser.add_argument('--data', default='unseen', type=str, choices=['full', 'unseen', "all_unseen"], help="data to use")
     
     args = parser.parse_args()
     data = args.data

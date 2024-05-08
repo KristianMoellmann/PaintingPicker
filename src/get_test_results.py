@@ -1,5 +1,5 @@
-# Python src/rating_systems/simulate_elo.py Kristian --data unseen
-# Python src/rating_systems/rating.py Kristian --folder data/processed/unseen
+# Python src/rating_systems/simulate_elo.py Kristian --data all_unseen
+# Python src/rating_systems/rating.py Kristian --folder data/processed/all_unseen
 # Python src/train_model.py Kristian --scoring elo --score_type logic --dont_plot
 # Python src/test_model.py Kristian --scoring elo --score_type logic --model model1 --plot True
 
@@ -52,3 +52,12 @@ if __name__ == "__main__":
     # Example usage:
     # Python src/get_test_results.py kasper --scoring elo --score_type logic --model non --plot False
     
+    
+    # Python src/rating_systems/rating.py Kristian --folder data/processed/all_unseen
+    # Python src/rating_systems/simulate_elo.py Kristian --data all_unseen
+    
+    # Python src/rating_systems/rating.py kristoffer --folder data/processed/all_unseen
+    # Python src/rating_systems/simulate_elo.py kristoffer --data all_unseen
+    
+    # Python src/rating_systems/rating.py kasper --folder data/processed/all_unseen
+    # Python src/rating_systems/simulate_elo.py kasper --data all_unseen
