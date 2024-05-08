@@ -18,7 +18,7 @@ def extract_data(dataset):
     elif dataset == 'full':
         print('Extracting full dataset')
         images = all_images[:1000]
-    elif dataset == "unseen":
+    elif dataset == "all_unseen": # notice unseen is no longer here.
         print('Extracting unseen dataset')
         
         # Get the images that have been seen before
@@ -33,7 +33,7 @@ def extract_data(dataset):
         pictures_seen_before = set(list(kasper_before.keys()) + list(kristoffer_before.keys()))
         images = []
         image_values = set()
-        count = 0
+        # count = 0
         for image in all_images:
             if os.path.basename(image) not in pictures_seen_before:
                 
@@ -46,9 +46,9 @@ def extract_data(dataset):
                     image_values.add(unique_value)
                     
                     images.append(image)
-                    count += 1
-                    if count == 1000:
-                        break
+                    # count += 1
+                    # if count == 1000:
+                    #   break
                     
         
     shutil.rmtree(f'data/processed/{dataset}', ignore_errors=True)
@@ -60,6 +60,6 @@ def extract_data(dataset):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset', type=str, choices=['micro', 'tiny', 'full', "unseen"], help='Choose between micro, tiny, full and unseen dataset (3 vs. 10 vs. 1000 images)')
+    parser.add_argument('dataset', type=str, choices=['micro', 'tiny', 'full', "all_unseen"], help='Choose between micro, tiny, full and unseen dataset (3 vs. 10 vs. 1000 images)')
     args = parser.parse_args()
     extract_data(args.dataset)
