@@ -58,8 +58,8 @@ def get_kendall_tau():
             r_scores += list(rated_section_scores.values())
             p_scores += list(pred_section_scores.values())
 
-        tau = stats.kendalltau(r_scores, p_scores).statistic
-        print(f"\tKendall's tau: {tau:.2f}")
+        statistic, p_value = stats.kendalltau(r_scores, p_scores)
+        print(f"\tKendall's tau: {statistic:.2f}, p-value: {p_value}")
         print("\n")
 
 
