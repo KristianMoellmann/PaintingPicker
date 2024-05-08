@@ -14,7 +14,7 @@ if __name__=='__main__':
 
     # Load the scores
 
-    with open(f'scores/predictions/{args.name}_rated.json') as f:
+    with open(f'scores/predictions_100/{args.name}_rated.json') as f:
         scores = json.load(f)
     
     print("User: ", args.name, "\n")
