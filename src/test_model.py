@@ -79,30 +79,47 @@ def get_9(predictions, names):
     return best_9_predictions, best_9_names, worst_9_predictions, worst_9_names, middle_9_predictions, middle_9_names
 
 
-def plot_3x3grid(pictures, labels, title: str):
+def plot_3x3grid(pictures, labels, title: str, border_color='black'):
     # Prepares full paths and converts labels to integers if they are in tensor format
     paths = [f'data/processed/unseen/{name}' for name in pictures]
     labels = [label.item() if hasattr(label, 'item') else label for label in labels]
     
     # Setup the figure and axes
-    fig, axes = plt.subplots(3, 3, figsize=(12, 12))  # Larger figure size
+    fig, axes = plt.subplots(3, 3, figsize=(10, 10))  # Larger figure size
     axes = axes.flatten()  # Flatten the grid to make indexing easier
 
     for i, (path, label) in enumerate(zip(paths, labels)):
         img = Image.open(path)  # Load image from path
+        # center crop with smallest dimension
+        width, height = img.size
+        new_width = min(width, height)
+        new_height = min(width, height)
+        left = (width - new_width) / 2
+        top = (height - new_height) / 2
+        right = (width + new_width) / 2
+        bottom = (height + new_height) / 2
+        img = img.crop((left, top, right, bottom))
+        # resize to 512x512
+        img = img.resize((512, 512))
+
         axes[i].imshow(img)  # Display image
-        axes[i].set_title(f'{round(label,2)}', fontsize=12, fontweight='bold', color='blue')  # Enhanced title styling
+        # axes[i].set_title(f'{round(label,2)}', fontsize=12, fontweight='bold', color='blue')  # Enhanced title styling
         axes[i].axis('off')  # Turn off the axis
 
         # Optionally, you can add a border around each image
-        for spine in axes[i].spines.values():  # Adding a frame with color to the image
-            spine.set_edgecolor('black')
-            spine.set_linewidth(2)
+        # for spine in axes[i].spines.values():  # Adding a frame with color to the image
+        #     spine.set_edgecolor('black')
+        #     spine.set_linewidth(2)
 
-    plt.suptitle(title, fontsize=16, fontweight='bold', color='red')  # Enhanced main title styling
-    plt.tight_layout(pad=3.0)  # Increase padding between plots
-    plt.subplots_adjust(top=0.92)  # Adjust top margin to make space for the main title
-    plt.show()  # Display the plot
+    # plt.suptitle(title, fontsize=16, fontweight='bold', color='k')  # Enhanced main title styling
+    # outline the entire plot with a black border
+    # plt.tight_layout(pad=1.0)  # Increase padding between plots
+    plt.tight_layout()
+    # plt.subplots_adjust(top=0.92)  # Adjust top margin to make space for the main title
+    fig.set_edgecolor(border_color)
+    fig.patch.set_linewidth(10)  # Set the line width of the plot edge
+    plt.savefig(f'reports/figures/{title}.pdf', edgecolor=fig.get_edgecolor())  # Save the plot
+    # plt.show()  # Display the plot
     
 
 if __name__=='__main__':
@@ -150,10 +167,10 @@ if __name__=='__main__':
     best_9_preds, best_9_names, worst_9_preds, worst_9_names, middle_9_preds, middle_9_names = get_9(predictions, test_names)
     
     if args.plot:
-        prediction_histgoram(predictions)
-        plot_3x3grid(worst_9_names, worst_9_preds, "Worst")
-        plot_3x3grid(middle_9_names, middle_9_preds, "Mid")
-        plot_3x3grid(best_9_names, best_9_preds, "Best")
+        # prediction_histgoram(predictions)
+        plot_3x3grid(worst_9_names, worst_9_preds, "Worst", "red")
+        plot_3x3grid(middle_9_names, middle_9_preds, "Mid", "yellow")
+        plot_3x3grid(best_9_names, best_9_preds, "Best", "green")
     
     # Save the 9 best, 9 worst and 9 middle rated images
     worst_9 = {key: 0.1 for key in worst_9_names}
