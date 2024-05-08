@@ -130,6 +130,86 @@ def plot_elo_scores_scatter(score_dict: dict):
     plt.show()
 
 
+def plot_elo_scores_scatter_new(score_dict: dict):
+
+    # figsize
+    fig, ax = plt.subplots(1, 1, figsize=(5, 3.5))
+    plt.grid(True, linestyle='--', alpha=0.5, zorder=0)  # Add grid lines behind histogram
+    COLORS = {
+        "Logic": "red",
+        "Clip": "blue"
+    }
+
+    # sorting = np.argsort(np.array([val["elo"] for _, val in score_dict["Original"].items()]))
+
+    original_elos = np.array([val["elo"] for _, val in score_dict["Original"].items()])
+    sorting = np.argsort(original_elos)
+
+    original_elos = ((original_elos - original_elos.min()) / (original_elos.max() - original_elos.min()))[sorting]
+
+    for name in ["Logic", "Clip"]:
+        scores = score_dict[name]
+    
+        # all_elos = np.array([val["elo"] for _, val in scores.items()])[sorting]
+        all_elos = np.array([val["elo"] for _, val in scores.items()])
+        all_elos = ((all_elos - all_elos.min()) / (all_elos.max() - all_elos.min()))[sorting]
+
+        print(f"Min ELO: {min(all_elos):.2f}\nMax ELO: {max(all_elos):.2f}\nAverage ELO: {sum(all_elos) / len(all_elos):.2f}\nUnique ELOs: {len(set(all_elos))}")
+        
+        # all_elos_with_noise = [elo + (15 * (np.random.rand()*2 - 1)) for elo in all_elos]
+
+
+        if name != "Original":
+            
+            # # For each bin calculate mean and standard deviation
+            # bin_means, bin_edges, _ = stats.binned_statistic(range(len(all_elos)), all_elos, statistic='mean', bins=10)
+            # bin_std, _, _ = stats.binned_statistic(range(len(all_elos)), all_elos, statistic='std', bins=10)
+
+            # # Compute mean and std of the last half bin and add to means and stds
+            # last_mean = np.mean(all_elos[int(np.mean(bin_edges[-2:])):])
+            # last_std = np.std(all_elos[int(np.mean(bin_edges[-2:])):])
+            # bin_means = np.append(bin_means, last_mean)
+            # bin_std = np.append(bin_std, last_std)
+
+            bin_width = 0.1
+            bins = 10
+            bin_centers = np.arange(0, 1.1, bin_width)
+            bin_means = np.zeros(len(bin_centers))
+            bin_std = np.zeros(len(bin_centers))
+            for i, center in enumerate(bin_centers):
+                start = max(0, center - bin_width/2)
+                end = min(1, center + bin_width/2)
+                mask = (original_elos >= start) & (original_elos < end)
+                bin_means[i] = np.mean(all_elos[mask])
+                bin_std[i] = np.std(all_elos[mask])
+
+            # Plot fill between the mean and standard deviation
+            if name == "Logic":
+                ax.fill_between(bin_centers, bin_means - bin_std*2, bin_means + bin_std*2, alpha=0.3, color=COLORS[name], zorder=4)
+            else:
+                ax.fill_between(bin_centers, bin_means - bin_std*2, bin_means + bin_std*2, alpha=0.3, color=COLORS[name], zorder=3)
+        
+        # Plot histogram of elos
+        # ax.plot(range(len(all_elos)), all_elos, zorder=3, label=name, color=COLORS[name], alpha=0.5)
+        if name == "Logic":
+            ax.scatter(original_elos, all_elos, zorder=4, label=name, color=COLORS[name], s=2)
+        else:
+            ax.scatter(original_elos, all_elos, zorder=3, label=name, color=COLORS[name], s=2)
+    
+    ax.plot([0, 1], [0, 1], color='black', linestyle='--', zorder=6)
+
+    
+    ax.legend(loc='upper left')    
+    ax.set_xlabel("Normalised ELO (Original)")
+    ax.set_ylabel("Normalised ELO (Simulated)")
+    ax.set_xlim(0.0, 1.0)
+    ax.set_ylim(0.0, 1.0)
+    # plt.title(f"ELO distribution\nMin: {min(all_elos):.2f}, Max: {max(all_elos):.2f}, Average: {sum(all_elos) / len(all_elos):.2f}, Unique: {len(set(all_elos))}")
+    plt.tight_layout()
+    plt.savefig(f"reports/figures/elo/elo_scatter_{args.name}_new.pdf")
+    plt.show()
+
+
 def plot_elo_history(history: dict):
     sessions_time = []
     sessions_votes = [0, 0, 0]
@@ -212,6 +292,7 @@ if __name__ == '__main__':
         plot_elo_scores(score_dict)
         plot_elo_scores(score_dict, normalized=True)
         plot_elo_scores_scatter(score_dict)
+        plot_elo_scores_scatter_new(score_dict)
     
     # with open(history_file, 'r') as f:
     #     history = json.load(f)
